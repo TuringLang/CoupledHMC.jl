@@ -1,5 +1,15 @@
 name = "CoupledHMC"
+uuid = "2b235a6e-c7ff-4bf8-b98e-bb5eae5895d5"
+authors = ["Kai Xu <xukai921110@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+AdvancedHMC = "0bf59076-c3b1-5ca4-86bd-e02cd72cde3d"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+OptimalTransport = "7e02d93a-ae51-4f58-b602-d97af76e3b33"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
 [compat]
 julia = "1.5.0"
-[deps]
-DrWatson = "634d3b9d-ee7a-5ddf-bec9-22491ea816e1"
