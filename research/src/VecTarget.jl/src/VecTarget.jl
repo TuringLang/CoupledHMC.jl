@@ -2,7 +2,7 @@ module VecTarget
 
 using RCall, Parameters, Distributions, DistributionsAD
 using Random: shuffle
-using MLToolkit.DistributionsX: logpdf, logvar, mean, std, var, BroadcastedNormalStd
+using MLToolkit.DistributionsX: BroadcastedNormalStd
 using StatsFuns: logsumexp, logistic
 using ReverseDiff: ReverseDiff, DiffResults
 

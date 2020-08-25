@@ -97,6 +97,7 @@ function AdvancedHMC.refresh(
     end
     return z
 end
+
 struct HMCIterator
     rng
     h

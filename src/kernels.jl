@@ -117,114 +117,9 @@ function transition(rng, mh::MaxCoupledMH, h, z)
     return Transition(z, tstat)
 end
 
-using Hungarian, JuMP, Clp
+struct CoupledMultinomialTS{C<:AbstractCoupling} <: AbstractTrajectorySampler end
 
-abstract type AbstractContractionMethod end
-
-struct NoContraction <: AbstractContractionMethod end
-struct Pairing <: AbstractContractionMethod end
-struct OT <: AbstractContractionMethod end
-
-struct ContractiveMultinomialTS{C<:AbstractContractionMethod} <: AbstractTrajectorySampler end
-
-distancebetween(z1, z2) = norm(z1.θ[:,1] - z2.θ[:,2])
-
-"""Find the maximum probability of entering branch 1 via binary search"""
-function find_prob_cond_binsearch(prob_q, prob_r; n_iter_max=1_000)
-    low, high = 0.0, 1.0
-    prob_cond = 0.5
-    iter = 1
-    while iter <= n_iter_max
-        prob_debias = prob_q - prob_r * prob_cond
-        if all(prob_debias .>= 0)
-            prob_cond′ = (prob_cond + high) / 2
-            low = prob_cond
-            if abs(prob_cond′ - prob_cond) < 1e-6
-                return prob_cond
-            end
-        else
-            prob_cond′ = (low + prob_cond) / 2
-            high = prob_cond
-        end
-        prob_cond = prob_cond′
-        iter = iter + 1
-    end
-    return prob_cond
-end
-
-function rand_joint(rng, pairs, prob_p, prob_q; n_iter_max=1_000)
-    i = rand(Categorical(prob_p))
-    # Probability vector for the twisted distribution
-    prob_r = [prob_p[pairs[k]] for k in 1:length(pairs)]
-    prob_cond = find_prob_cond_binsearch(prob_q, prob_r)
-    if prob_cond < 1e-3
-        i, j = randcat(rng, cat(prob_p, prob_q; dims=2))
-        return (i=i, j=j)
-    else
-        if rand() <= prob_cond
-            return (i=i, j=pairs[i])
-        else
-            # Debiased probability vector
-            prob_debias = (prob_q - prob_r * prob_cond) / (1 - prob_cond)
-            try
-                j = rand(Categorical(prob_debias))
-                return (i=i, j=j)
-            catch e
-                println(e)
-                println(prob_p, prob_q)
-                println(prob_cond)
-                println(prob_debias)
-            end
-        end
-    end
-end
-
-"""Pairing by the Hungarian algorithm"""
-function pair_hungarian(M, prob_p, prob_q)
-    assignment, cost = hungarian(M .* prob_p')
-    return assignment
-end
-
-euclidsq(x::T, y::T) where {T<:AbstractVector} = 
-    euclidsq(reshape(x, 1, length(x)), reshape(y, 1, length(y)))
-
-function euclidsq(X::T, Y::T) where {T<:AbstractMatrix}
-    XiXj = transpose(X) * Y
-    x² = sum(X .^ 2; dims=1)
-    y² = sum(Y .^ 2; dims=1)
-    return transpose(x²) .+ y² - 2XiXj
-end
-
-function euclidsq(zs::Vector)
-    x = cat(map(z -> z.θ[:,1], zs)...; dims=2)
-    y = cat(map(z -> z.θ[:,2], zs)...; dims=2)
-    return euclidsq(x, y)
-end
-
-function rand_joint(rng::AbstractVector{<:AbstractRNG}, G)
-    I = collect(Iterators.product(1:size(G, 1), 1:size(G, 2)))
-    i, j = I[AdvancedHMC.randcat(rng[1], vec(G))]
-    rand(rng[2])    # dummy call to sync RNG
-    return (i=i, j=j)
-end
-
-function init_ot_model(p::AbstractVector, q::AbstractVector)
-    model = Model(Clp.Optimizer)
-    MOI.set(model, MOI.Silent(), true) # turn off logging
-    
-    # variable
-    @variable(model, γ[1:length(p), 1:length(q)])
-    
-    # constraints
-    @constraint(model, marginal_p_con, vec(sum(γ; dims = 2)) .== p)
-    @constraint(model, marginal_q_con, vec(sum(γ; dims = 1)) .== q)
-
-    @constraint(model, γ .≥ 0)
-    
-    return model
-end
-
-function sample_phasepoint(rng, τ::StaticTrajectory{ContractiveMultinomialTS{C}}, h, z) where {C}
+function sample_phasepoint(rng, τ::StaticTrajectory{CoupledMultinomialTS{C}}, h, z) where {C}
     n_steps = abs(τ.n_steps)
     # TODO: Deal with vectorized-mode generically.
     #       Currently the direction of multiple chains are always coupled
@@ -240,26 +135,17 @@ function sample_phasepoint(rng, τ::StaticTrajectory{ContractiveMultinomialTS{C}
     unnorm_ℓprob = ℓweights
     prob = exp.(unnorm_ℓprob .- logsumexp(unnorm_ℓprob; dims=2))
 
-    if C == NoContraction
-        i, _ = randcat(rng, prob')
-        _, j = randcat(rng, prob')
-    end
-    
-    if C == Pairing
-        M = euclidsq(zs)
-        pairs = pair_hungarian(M, prob[1,:], prob[2,:])
-        i, j = rand_joint(rng, pairs, prob[1,:], prob[2,:])
+    if C == QuantileCoupling || C == MaximalCoupling
+        coupling = C(prob[1,:], prob[2,:])
+    elseif C == OTCoupling || C == ApproximateOTCoupling
+        τ¹ = cat(map(z -> z.θ[:,1], zs)...; dims=2)
+        τ² = cat(map(z -> z.θ[:,2], zs)...; dims=2)
+        coupling = C(prob[1,:], prob[2,:], τ¹, τ²)
+    else
+        error("Unknown coupling method for CoupledMultinomialTS `$C`.")
     end
 
-    if C == OT
-        M = euclidsq(zs)
-        G = let ot_model = init_ot_model(prob[1,:], prob[2,:])
-            @objective(ot_model, Min, sum(ot_model.obj_dict[:γ] .* M))
-            optimize!(ot_model)
-            value.(ot_model.obj_dict[:γ])
-        end
-        i, j = rand_joint(rng, G)
-    end
+    i, j = rand(coupling)
     
     z′ = similar(z)
     foreach(enumerate([i, j])) do (i_chain, i_step)

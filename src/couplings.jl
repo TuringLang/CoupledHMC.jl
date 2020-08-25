@@ -56,7 +56,7 @@ struct OTCoupling{T1<:AbstractVector, T2<:AbstractMatrix} <: AbstractCoupling
     D::T2
 end
 
-OTCoupling(p, q, τ₁, τ₂) = OTCoupling(p, q, euclidsq(τ₁, τ₂))
+OTCoupling(p, q, τ¹, τ²) = OTCoupling(p, q, euclidsq(τ¹, τ²))
 
 function euclidsq(X::T, Y::T) where {T<:AbstractMatrix}
     XiXj = transpose(X) * Y
@@ -71,14 +71,36 @@ euclidsq(x::T, y::T) where {T<:AbstractVector} =
 function rand_joint(J::AbstractMatrix)
     u = collect(Iterators.product(1:size(J, 1), 1:size(J, 2)))
     v = vec(J)
-    return u[rand(Categorical(v))]
+    return u[rand(Categorical(v; check_args=false))]
 end
 
 "Covert `Ajoint` to `TM<:AbstractMatrix`."
 rand_joint(J::Adjoint{TN, TM}) where {TN, TM<:AbstractMatrix} = rand_joint(TM(J))
 
+function emd_jump(p ,q, D)
+    model = Model(Clp.Optimizer)
+    MOI.set(model, MOI.Silent(), true)  # turn off logging
+    
+    # Variable - `γ`
+    @variable(model, γ[1:length(p), 1:length(q)])
+    
+    # Constraints
+    @constraint(model, marginal_p_con, vec(sum(γ; dims = 2)) .== p)
+    @constraint(model, marginal_q_con, vec(sum(γ; dims = 1)) .== q)
+    @constraint(model, γ .≥ 0)
+
+    # Objective - EMD objective
+    @objective(model, Min, sum(model.obj_dict[:γ] .* D))
+
+    # Optimize
+    optimize!(model)
+
+    # Return optimized `γ`
+    return value.(model.obj_dict[:γ])
+end
+
 function rand_pair(otc::OTCoupling)
-    γ = emd(otc.p, otc.q, otc.D)
+    γ = emd_jump(otc.p, otc.q, otc.D)
     i, j = rand_joint(γ)
     return (i = i, j = j)
 end
@@ -90,19 +112,21 @@ struct ApproximateOTCoupling{
     p::T1
     q::T1
     D::T2
-    ϵ::T3
+    eps::T3
 end
 
 function ApproximateOTCoupling(
-    p::T1, q::T1, τ₁::T2, τ₂::T2; reps::T3=0.05
+    p::T1, q::T1, τ¹::T2, τ²::T2; eps::T3=1e-3
 ) where {T1<:AbstractVector, T2<:AbstractVecOrMat, T3<:AbstractFloat}
-    D = euclidsq(τ₁, τ₂)
-    ϵ = reps * mean(D)
-    return ApproximateOTCoupling(p, q, D, ϵ)
+    D = euclidsq(τ¹, τ²)
+    D = D / maximum(D)
+    return ApproximateOTCoupling(p, q, D, eps)
 end
 
 function rand_pair(aotc::ApproximateOTCoupling)
-    γ = sinkhorn(aotc.p, aotc.q, aotc.D, aotc.ϵ)
+    γ = with_logger(NullLogger()) do
+        sinkhorn(aotc.p, aotc.q, aotc.D, aotc.eps)
+    end
     p_γ, q_γ = vec(sum(γ; dims=2)), vec(sum(γ; dims=1))
     α = min(minimum(aotc.q ./ q_γ), minimum(aotc.p ./ p_γ))
     u = rand()
@@ -111,8 +135,8 @@ function rand_pair(aotc::ApproximateOTCoupling)
     else
         p_debias = (aotc.p - (1 - α) * p_γ) / α
         q_debias = (aotc.q - (1 - α) * q_γ) / α
-        i = rand(Categorical(p_debias))
-        j = rand(Categorical(q_debias))
+        i = rand(Categorical(p_debias; check_args=false))
+        j = rand(Categorical(q_debias; check_args=false))
     end
     return (i = i, j = j)
 end
