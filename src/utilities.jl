@@ -44,8 +44,7 @@ using Random: GLOBAL_RNG
 Random.MersenneTwister(seeds::AbstractVector{Int}) = MersenneTwister.(seeds)
 
 "Sample a random seed to be used"
-randseed(rng) = rand(rng, Int16) + 2^16
-randseed() = randseed(GLOBAL_RNG)
+randseed(rng=Random.GLOBAL_RNG) = rand(rng, Int16) + 2^16
 
 """
     rands(rng, dim::Int; R=1)

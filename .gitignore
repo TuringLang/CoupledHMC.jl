@@ -1,5 +1,7 @@
+*.cmd
 .vscode
 .history
+research/plots
 
 ################################################################################
 #                          DrWatson Project Structure                          #

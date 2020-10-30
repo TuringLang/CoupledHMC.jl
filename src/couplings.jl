@@ -2,8 +2,6 @@ abstract type AbstractCoupling end
 
 Random.rand(c::AbstractCoupling) = rand_pair(c)
 
-randseed(rng=Random.GLOBAL_RNG) = rand(rng, 1:1_000_000)
-
 "Independent coupling"
 struct IndependentCoupling{T<:AbstractVector} <: AbstractCoupling 
     p::T
@@ -116,10 +114,12 @@ struct ApproximateOTCoupling{
 end
 
 function ApproximateOTCoupling(
-    p::T1, q::T1, τ¹::T2, τ²::T2; eps::T3=1e-3
+    p::T1, q::T1, τ¹::T2, τ²::T2; reps::T3=1e-2
 ) where {T1<:AbstractVector, T2<:AbstractVecOrMat, T3<:AbstractFloat}
     D = euclidsq(τ¹, τ²)
     D = D / maximum(D)
+    d = size(τ¹, 1)
+    eps = sqrt(1 / 2 * median(D) / log(d + 1)) * reps
     return ApproximateOTCoupling(p, q, D, eps)
 end
 
@@ -128,7 +128,7 @@ function rand_pair(aotc::ApproximateOTCoupling)
         sinkhorn(aotc.p, aotc.q, aotc.D, aotc.eps)
     end
     p_γ, q_γ = vec(sum(γ; dims=2)), vec(sum(γ; dims=1))
-    α = min(minimum(aotc.q ./ q_γ), minimum(aotc.p ./ p_γ))
+    α = min(1, minimum(aotc.q ./ q_γ), minimum(aotc.p ./ p_γ))
     u = rand()
     if u < α
         i, j = rand_joint(γ)

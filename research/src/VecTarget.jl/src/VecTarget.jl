@@ -1,8 +1,8 @@
 module VecTarget
 
-using RCall, Parameters, Distributions, DistributionsAD
-using Random: shuffle
-using MLToolkit.DistributionsX: BroadcastedNormalStd
+using BSON, Parameters, Distributions, DistributionsAD
+using Random: AbstractRNG, GLOBAL_RNG, rand!, randn!, shuffle
+include("bnormal.jl")
 using StatsFuns: logsumexp, logistic
 using ReverseDiff: ReverseDiff, DiffResults
 
