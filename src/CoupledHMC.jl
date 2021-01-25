@@ -74,12 +74,15 @@ HMC (without coupling) with trajectory sampler `TS`, step size `ϵ` and step num
 $(TYPEDFIELDS)
 """
 Base.@kwdef struct HMCSampler{
-    _TS<:AbstractTrajectorySampler, F<:AbstractFloat, R<:Function
+    _TS<:AbstractTrajectorySampler, 
+    F<:Union{AbstractFloat, Missing}, 
+    I<:Union{Int, Missing}, 
+    R<:Function
 } <: AbstractSampler
     rinit::R
     TS::Type{_TS}
-    ϵ::F
-    L::Int
+    ϵ::F=missing
+    L::I=missing
 end
 
 """
@@ -115,17 +118,25 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
     rng = MersenneTwister(randseed())
     metric = UnitEuclideanMetric(target.dim)
     hamiltonian = Hamiltonian(metric, target.logdensity, target.get_grad(theta0))
-    integrator = Leapfrog(alg.ϵ)
-    # Get the corresponding marginal trajectory sampler
-    TS = if alg.TS <: EndPointTS
-        EndPointTS
-    elseif alg.TS <: CoupledMultinomialTS
-        MultinomialTS
+    if ismissing(alg.ϵ) && ismissing(alg.L)
+        integrator = Leapfrog(find_good_stepsize(hamiltonian, theta0))
+        @assert alg.TS <: MultinomialTS
+        proposal = NUTS{MultinomialTS, GeneralisedNoUTurn}(integrator)
+        adaptor = StanHMCAdaptor(MassMatrixAdaptor(metric), StepSizeAdaptor(0.8, integrator))
+        return rng, hamiltonian, proposal, adaptor, theta0
     else
-        error("Marginal sampler for `$(alg.TS)` is not defined.")
+        integrator = Leapfrog(alg.ϵ)
+        # Get the corresponding marginal trajectory sampler
+        TS = if alg.TS <: EndPointTS
+            EndPointTS
+        elseif alg.TS <: CoupledMultinomialTS || alg.TS <: MultinomialTS
+            MultinomialTS
+        else
+            error("Marginal sampler for `$(alg.TS)` is not defined.")
+        end
+        proposal = StaticTrajectory{TS}(integrator, alg.L)
+        return rng, hamiltonian, proposal, theta0
     end
-    proposal = StaticTrajectory{TS}(integrator, alg.L)
-    return rng, hamiltonian, proposal, theta0
 end
 
 function get_ahmc_primitives(target, alg::CoupledHMCSampler, theta0)
@@ -158,6 +169,14 @@ function sample(target, alg::HMCSampler, n_samples::Int; theta0=nothing, progres
     rng, hamiltonian, proposal, theta0 = get_ahmc_primitives(target, alg, theta0)
     samples, stats = AdvancedHMC.sample(
         rng, hamiltonian, proposal, theta0, n_samples; progress=progress, verbose=false
+    )
+    return samples
+end
+
+function sample(target, alg::HMCSampler{_TS, Missing, Missing}, n_samples::Int, n_adapts::Int; theta0=nothing, progress=false) where {_TS}
+    rng, hamiltonian, proposal, adaptor, theta0 = get_ahmc_primitives(target, alg, theta0)
+    samples, stats = AdvancedHMC.sample(
+        rng, hamiltonian, proposal, theta0, n_samples, adaptor, n_adapts; progress=progress, verbose=false
     )
     return samples
 end
