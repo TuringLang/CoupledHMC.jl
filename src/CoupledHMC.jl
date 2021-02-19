@@ -12,37 +12,8 @@ include("utilities.jl")
 export rands
 
 ### AdvancedHMC extensions
-
-using AdvancedHMC: AdvancedHMC, PhasePoint, sample_init
-
-const REFRESHMENT = Ref(:shared)
-
-function set_refreshment!(refreshment)
-    !(refreshment in (:shared, :contractive)) && error("Unsupoorted refreshment: $refreshment")
-    REFRESHMENT[] = refreshment
-end
-
-function AdvancedHMC.refresh(
-    rng::AbstractVector{<:MersenneTwister},
-    z::PhasePoint,
-    h::Hamiltonian
-)
-    if REFRESHMENT[] == :shared
-        z = phasepoint(h, z.θ, rand(rng, h.metric))
-    elseif REFRESHMENT[] == :contractive
-        κ = 1.0
-        x, y = z.θ[:,1], z.θ[:,2]
-        Δ = x - y
-        normΔ = norm(Δ)
-        Δ̄ = Δ / normΔ
-        rx = rand(rng, h.metric)[:,1]
-        logu = log(rand())
-        prob = logpdf(Normal(0, 1), Δ̄' * rx + κ * normΔ) - logpdf(Normal(0, 1), Δ̄' * rx)
-        ry = logu < prob ? rx + κ * Δ : rx - 2 * (Δ̄' * rx) * Δ̄
-        z = phasepoint(h, z.θ, cat(rx, ry; dims=2))
-    end
-    return z
-end
+include("refreshments.jl")
+export SharedRefreshment, ContractiveRefreshment
 
 struct HMCIterator
     rng
@@ -61,8 +32,10 @@ include("couplings.jl")
 export IndependentCoupling, QuantileCoupling, MaximalCoupling, OTCoupling, ApproximateOTCoupling
 
 include("kernels.jl")
+include("trajectory_samplers.jl")
+
 const MetropolisTS = EndPointTS
-export set_refreshment!, MetropolisTS, MultinomialTS, CoupledMultinomialTS
+export MetropolisTS, MultinomialTS, CoupledMultinomialTS
 
 ### CoupledHMC abstractions
 abstract type AbstractSampler end
