@@ -14,23 +14,19 @@ with minimal and necessary editions.
 function reflmaxcoupling(rng, mu1, mu2, sqrtD, kappa)
     dim = size(mu1, 1)
     momentum1 = randn(dim)
-    local momentum2, samesame
-    logu = log(rand())
+
+    logu = log(AdvancedHMC.rand_coupled(rng))
     z = (mu1 - mu2) / sqrtD
     normz = sqrt(sum(z.^2))
     evector = z / normz
     edotxi = dot(evector, momentum1)
-    if logu < sum(logpdf.(Normal(0, 1), edotxi + kappa * normz)) - sum(logpdf.(Normal(0, 1), edotxi))
-        momentum2 = momentum1 + kappa * z
-        samesame = true
+
+    momentum2, sameasme = if logu < sum(logpdf.(Normal(0, 1), edotxi + kappa * normz)) - sum(logpdf.(Normal(0, 1), edotxi))
+        (momentum1 + kappa * z, true)
     else
-        if iszero(normz)    # otherwise it will give numeric erros and ended up rejecting
-            momentum2 = zeros(dim)  # this is equivalent to rejection
-        else
-            momentum2 = momentum1 - 2 * edotxi * evector
-        end
-        samesame = false
+        (iszero(normz) ? zeros(dim) : momentum1 - 2 * edotxi * evector, false)
     end
+
     momentum1 = momentum1 * sqrtD
     momentum2 = momentum2 * sqrtD
     return (momentum1=momentum1, momentum2=momentum2, samesame=samesame)
