@@ -1,7 +1,7 @@
-using AdvancedHMC: AdvancedHMC, PhasePoint, sample_init, AbstractRefreshment
+using AdvancedHMC: AdvancedHMC, PhasePoint, sample_init, AbstractMomentumRefreshment
 
-struct SharedRefreshment <: AbstractRefreshment end
-struct ContractiveRefreshment <: AbstractRefreshment end
+struct SharedRefreshment <: AbstractMomentumRefreshment end
+struct ContractiveRefreshment <: AbstractMomentumRefreshment end
 
 
 function AdvancedHMC.refresh(
