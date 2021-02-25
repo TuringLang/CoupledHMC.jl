@@ -1,6 +1,13 @@
 abstract type AbstractCoupling end
 
-Random.rand(c::AbstractCoupling) = rand_pair(c)
+const AbstractRNGOrVec = Union{AbstractRNG, AbstractVector{<:AbstractRNG}}
+
+Random.rand(c::AbstractCoupling) = Random.rand(Random.GLOBAL_RNG, c)
+Random.rand(rng::AbstractRNG, c::AbstractCoupling) = rand_pair(rng, c)
+Random.rand(rng::AbstractVector{<:AbstractRNG}, c::AbstractCoupling) = rand_pair(rng, c)
+
+rand_pair(c::AbstractCoupling) = rand_pair(Random.GLOBAL_RNG, c)
+
 
 "Independent coupling"
 struct IndependentCoupling{T<:AbstractVector} <: AbstractCoupling 
@@ -8,7 +15,9 @@ struct IndependentCoupling{T<:AbstractVector} <: AbstractCoupling
     q::T
 end
 
-rand_pair(ic::IndependentCoupling) = (i = rand(Categorical(ic.p)), j = rand(Categorical(ic.q)))
+function rand_pair(rng::AbstractRNGOrVec, ic::IndependentCoupling)
+    (i = rand_coupled(rng, Categorical(ic.p)), j = rand_coupled(rng, Categorical(ic.q)))
+end
 
 "Quantile coupling"
 struct QuantileCoupling{T<:AbstractVector} <: AbstractCoupling 
@@ -23,7 +32,7 @@ function QuantileCoupling(p, q)
     return QuantileCoupling(p, q, rngs)
 end
 
-function rand_pair(qc::QuantileCoupling)
+function rand_pair(rng::AbstractRNGOrVec, qc::QuantileCoupling)
     return (i = rand(qc.rngs[1], Categorical(qc.p)), j = rand(qc.rngs[2], Categorical(qc.q)))
 end
 
@@ -33,16 +42,16 @@ struct MaximalCoupling{T<:AbstractVector} <: AbstractCoupling
     q::T
 end
 
-function rand_pair(mc::MaximalCoupling)
+function rand_pair(rng::AbstractRNGOrVec, mc::MaximalCoupling)
     ω = 1 - totalvariation(mc.p, mc.q)
     pqmin = min.(mc.p, mc.q)
     Z = sum(pqmin)
-    u = rand()
+    u = rand_coupled(rng)
     if u < ω
-        i = j = rand(Categorical(pqmin / Z))
+        i = j = rand_coupled(rng, Categorical(pqmin / Z))
     else
-        i = rand(Categorical((mc.p - pqmin) / (1 - Z)))
-        j = rand(Categorical((mc.q - pqmin) / (1 - Z)))
+        i = rand_coupled(rng, Categorical((mc.p - pqmin) / (1 - Z)))
+        j = rand_coupled(rng, Categorical((mc.q - pqmin) / (1 - Z)))
     end
     return (i = i, j = j)
 end
@@ -66,14 +75,19 @@ end
 euclidsq(x::T, y::T) where {T<:AbstractVector} = 
     euclidsq(reshape(x, 1, length(x)), reshape(y, 1, length(y)))
 
-function rand_joint(J::AbstractMatrix)
+function rand_joint(rng::AbstractRNGOrVec, J::AbstractMatrix)
     u = collect(Iterators.product(1:size(J, 1), 1:size(J, 2)))
     v = vec(J)
-    return u[rand(Categorical(v; check_args=false))]
+    return u[rand_coupled(rng, Categorical(v; check_args=false))]
 end
 
 "Covert `Ajoint` to `TM<:AbstractMatrix`."
-rand_joint(J::Adjoint{TN, TM}) where {TN, TM<:AbstractMatrix} = rand_joint(TM(J))
+function rand_joint(
+    rng::AbstractRNGOrVec,
+    J::Adjoint{TN, TM}
+) where {TN, TM<:AbstractMatrix}
+    rand_joint(rng, TM(J))
+end
 
 function emd_jump(p ,q, D)
     model = Model(Clp.Optimizer)
@@ -97,9 +111,9 @@ function emd_jump(p ,q, D)
     return value.(model.obj_dict[:γ])
 end
 
-function rand_pair(otc::OTCoupling)
+function rand_pair(rng::AbstractRNGOrVec, otc::OTCoupling)
     γ = emd_jump(otc.p, otc.q, otc.D)
-    i, j = rand_joint(γ)
+    i, j = rand_joint(rng, γ)
     return (i = i, j = j)
 end
 
@@ -123,20 +137,20 @@ function ApproximateOTCoupling(
     return ApproximateOTCoupling(p, q, D, eps)
 end
 
-function rand_pair(aotc::ApproximateOTCoupling)
+function rand_pair(rng::AbstractRNGOrVec, aotc::ApproximateOTCoupling)
     γ = with_logger(NullLogger()) do
         sinkhorn(aotc.p, aotc.q, aotc.D, aotc.eps)
     end
     p_γ, q_γ = vec(sum(γ; dims=2)), vec(sum(γ; dims=1))
     α = min(1, minimum(aotc.q ./ q_γ), minimum(aotc.p ./ p_γ))
-    u = rand()
+    u = rand_coupled(rng)
     if u < α
-        i, j = rand_joint(γ)
+        i, j = rand_joint(rng, γ)
     else
         p_debias = (aotc.p - (1 - α) * p_γ) / α
         q_debias = (aotc.q - (1 - α) * q_γ) / α
-        i = rand(Categorical(p_debias; check_args=false))
-        j = rand(Categorical(q_debias; check_args=false))
+        i = rand_coupled(rng, Categorical(p_debias; check_args=false))
+        j = rand_coupled(rng, Categorical(q_debias; check_args=false))
     end
     return (i = i, j = j)
 end

@@ -39,7 +39,7 @@ function AdvancedHMC.sample_phasepoint(
         error("Unknown coupling method for CoupledMultinomialTS `$C`.")
     end
 
-    i, j = rand(coupling)
+    i, j = rand(rng, coupling)
     z′ = similar(z)
     foreach(enumerate([i, j])) do (i_chain, i_step)
         zi = zs[i_step]
