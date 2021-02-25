@@ -15,7 +15,7 @@ function reflmaxcoupling(rng, mu1, mu2, sqrtD, kappa)
     dim = size(mu1, 1)
     momentum1 = randn(dim)
 
-    logu = log(AdvancedHMC.rand_coupled(rng))
+    logu = log(rand())
     z = (mu1 - mu2) / sqrtD
     normz = sqrt(sum(z.^2))
     evector = z / normz

@@ -10,15 +10,15 @@ function transition(rng, h, mh::MaxCoupledMH, z)
     @unpack θ, r = z
     x, y = θ[:, 1], θ[:, 2]
     p, q = MvNormal(x, mh.σ), MvNormal(y, mh.σ)
-    x = AdvancedHMC.rand_coupled(rng, p)
+    x = rand(p)
     does_meet = false
-    θ = if logpdf(p, x) + log(AdvancedHMC.rand_coupled(rng)) <= logpdf(q, x)
+    θ = if logpdf(p, x) + log(rand()) <= logpdf(q, x)
         does_meet = true
         cat(x, x; dims=2)
     else
-        y′ = AdvancedHMC.rand_coupled(rng, q)
-        while logpdf(q, y′) + log(AdvancedHMC.rand_coupled(rng)) > logpdf(p, y′)
-            y′ = AdvancedHMC.rand_coupled(rng, q)
+        y′ = rand(q)
+        while logpdf(q, y′) + log(rand()) > logpdf(p, y′)
+            y′ = rand(q)
         end
         cat(x, y′; dims=2)
     end

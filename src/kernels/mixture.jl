@@ -12,7 +12,7 @@ function AdvancedHMC.transition(
     mix::MixtureKernel,
     z::PhasePoint
 )
-    if rand(rng) < mix.γ
+    if rand() < mix.γ
         return AdvancedHMC.transition(rng, h, mix.τ1, z)
     else
         return AdvancedHMC.transition(rng, h, mix.τ2, z)
@@ -30,7 +30,7 @@ function AdvancedHMC.transition(
     # use different components, BUT this will be faster and the resulting
     # chains should still be valid. Similar to:
     # https://github.com/TuringLang/AdvancedHMC.jl/pull/166#pullrequestreview-367216534
-    if AdvancedHMC.rand_coupled(rng) < mix.γ
+    if rand() < mix.γ
         return AdvancedHMC.transition(rng, h, mix.τ1, z)
     else
         return AdvancedHMC.transition(rng, h, mix.τ2, z)
