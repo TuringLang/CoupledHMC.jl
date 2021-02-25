@@ -93,11 +93,12 @@ export get_k_m, does_meet, τ_of, H_of, i_of, v_of
 
 ### Sampling interface for `AbstractSampler`
 function get_ahmc_primitives(target, alg::HMCSampler, theta0)
+    rng = MersenneTwister(randseed())
+
     if isnothing(theta0)
-        theta0 = alg.rinit(VecTargets.dim(target))
+        theta0 = alg.rinit(rng, VecTargets.dim(target))
     end
 
-    rng = MersenneTwister(randseed())
     metric = UnitEuclideanMetric(VecTargets.dim(target))
     hamiltonian = begin
         logπ(θ) = VecTargets.logpdf(target, θ)
@@ -112,7 +113,7 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
     end
 
     if ismissing(alg.ϵ) && ismissing(alg.L)
-        integrator = Leapfrog(find_good_stepsize(hamiltonian, theta0))
+        integrator = Leapfrog(find_good_stepsize(rng, hamiltonian, theta0))
         @assert alg.TS <: MultinomialTS
         trajectory = Trajectory{MultinomialTS}(integrator, GeneralisedNoUTurn())
         adaptor = StanHMCAdaptor(MassMatrixAdaptor(metric), StepSizeAdaptor(0.8, integrator))
@@ -136,15 +137,17 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
 end
 
 function get_ahmc_primitives(target, alg::CoupledHMCSampler, theta0)
+    rng = MersenneTwister(fill(randseed(), 2))
+
     if isnothing(theta0)
         # Sample (X_0, Y_0)
-        x0, y0 = alg.rinit(VecTargets.dim(target)), alg.rinit(VecTargets.dim(target))
+        x0 = alg.rinit(rng[1], VecTargets.dim(target))
+        y0 = alg.rinit(rng[2], VecTargets.dim(target))
         # Transit X_0 to X_1
         samples = sample(target, HMCSampler(rinit=alg.rinit, TS=alg.TS, ϵ=alg.ϵ, L=alg.L), 1; theta0=x0)
         # Return (X_1, Y_0)
         theta0 = cat(samples[end], y0; dims=2)
     end
-    rng = MersenneTwister(fill(randseed(), 2))
 
     metric = UnitEuclideanMetric((VecTargets.dim(target), 2))
     hamiltonian = begin
