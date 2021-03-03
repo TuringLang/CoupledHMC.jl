@@ -28,13 +28,11 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets
         momentum_refreshment=refreshment
     )
     τs = zeros(Int, n_mc)
-    # progress = Progress(n_mc)
+    progress = Progress(n_mc)
     for i in 1:n_mc
-        print("[$i / $n_mc] Starting...")
         samples = sample_until_meeting(target, alg; n_samples_max=n_samples_max)
         τs[i] = length(samples)
-        println("OK!")
-        # next!(progress)
+        next!(progress)
     end 
     m, s = round(mean(τs); digits=3), round(std(τs); digits=3)
     
