@@ -37,7 +37,7 @@ include("kernels.jl")
 include("trajectory_samplers.jl")
 
 const MetropolisTS = EndPointTS
-export MetropolisTS, MultinomialTS, CoupledMultinomialTS
+export EndPointTS, MetropolisTS, MultinomialTS, CoupledMultinomialTS
 
 ### CoupledHMC abstractions
 abstract type AbstractSampler end

@@ -16,9 +16,13 @@ function transition(rng, h, mh::MaxCoupledMH, z)
         does_meet = true
         cat(x, x; dims=2)
     else
-        y′ = rand(q)
-        while logpdf(q, y′) + log(rand()) > logpdf(p, y′)
+        # `local` is necessary so that we can replace it within the `while` loop
+        local y′
+        while true
             y′ = rand(q)
+            if logpdf(q, y′) + log(rand()) > logpdf(p, y′)
+                break
+            end
         end
         cat(x, y′; dims=2)
     end
