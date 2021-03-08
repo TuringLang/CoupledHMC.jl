@@ -10,23 +10,15 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets
 )
     fname = savename(@ntuple(refreshment, TS), "bson"; connector="-")
 
-    # parse refreshment
-    e = Meta.parse(refreshment)
-    refreshment = if e isa Symbol
-        # Is not instantiated => instantiate
-        Base.eval(CoupledHMC, Expr(:call, e))
-    else
-        # Is instantiated => do nothing
-        Base.eval(CoupledHMC, e)
-    end
-
-    TS = Base.eval(CoupledHMC, Meta.parse(TS)) # parse TS
-    
-    target = Banana()
+    refreshment = Research.parse_refreshment(refreshment)
+    TS = Research.parse_trajectory_sampler(TS)
     alg = CoupledHMCSampler(
         rinit=rand, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma,
         momentum_refreshment=refreshment
     )
+
+    target = Banana()
+
     τs = zeros(Int, n_mc)
     progress = Progress(n_mc)
     for i in 1:n_mc

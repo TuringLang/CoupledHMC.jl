@@ -5,27 +5,33 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
 
 @main function exp_meeting(
     model, TS, epsilon::Float64, L::Int;
-    n_mc::Int=10, n_samples_max::Int=1_000, gamma::Float64=1/20, sigma::Float64=1e-3, lambda::Float64=0.01, n_grids::Int=16, 
-    saveraw_on::Bool=false
+    n_mc::Int=10, n_samples_max::Int=1_000, gamma::Float64=1/20, sigma::Float64=1e-3,
+    lambda::Float64=0.01, n_grids::Int=16, saveraw_on::Bool=false,
+    refreshment::String="SharedRefreshment"
 )
     fname = savename(@ntuple(model, TS, epsilon, L), "bson"; connector="-")
     fpath = projectdir("results", "meeting", fname)
-    TS = Base.eval(CoupledHMC, Meta.parse(TS)) # parse TS
+
+    refreshment = Research.parse_refreshment(refreshment)
+    TS = Research.parse_trajectory_sampler(TS)
 
     if isfile(fpath)
         @info "$fpath exists -- skipping."
     else
         @info "$fpath doesn't exist -- producing."
         if model == "gaussian"
-            target = get_target(HighDimGaussian(1_000))
+            target = HighDimGaussian(1_000)
         elseif model == "lr"
-            target = get_target(LogisticRegression(datadir(), lambda))
+            target = LogisticRegression(datadir(), lambda)
         elseif model == "coxprocess"
-            target = get_target(LogGaussianCoxPointProcess(datadir(), n_grids))
+            target = LogGaussianCoxPointProcess(datadir(), n_grids)
         else
             error("Unkown model name $model.")
         end
-        alg = CoupledHMCSampler(rinit=randn, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma)
+        alg = CoupledHMCSampler(
+            rinit=randn, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma,
+            momentum_refreshment=refreshment
+        )
         τs = zeros(Int, n_mc)
         if saveraw_on
             chains = Vector{Any}(undef, n_mc)

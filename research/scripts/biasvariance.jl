@@ -1,16 +1,19 @@
 using DrWatson
 @quickactivate "Research"
 
-using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
+using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets, Research
 
 @main function exp_biasvariance(
     model, TS;
     n_mc_taus::Int=100, n_mc_long::Int=100, n_samples_max::Int=1_000, 
-    gamma::Float64=1/20, sigma::Float64=1e-3, lambda::Float64=0.01, n_grids::Int=16
+    gamma::Float64=1/20, sigma::Float64=1e-3, lambda::Float64=0.01, n_grids::Int=16,
+    refreshment::String="SharedRefreshment"
 )
     fname = savename(@ntuple(model, TS), "bson"; connector="-")
     fpath = projectdir("results", "biasvariance", fname)
-    TS = Base.eval(CoupledHMC, Meta.parse(TS)) # parse TS
+
+    refreshment = Research.parse_refreshment(refreshment)
+    TS = Research.parse_trajectory_sampler(TS)
 
     if isfile(fpath)
         @info "$fpath exists -- skipping."
@@ -26,7 +29,7 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
             # v_of(samples[1_000+1:end])
             ### Metropolis HMC: 34.91
             v_crude = 34.91
-            target = get_target(LogisticRegression(datadir(), lambda))
+            target = LogisticRegression(datadir(), lambda)
             if TS == MetropolisTS
                 ϵ, L = 0.0125, 10
             elseif TS == CoupledMultinomialTS{QuantileCoupling}
@@ -47,7 +50,7 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
             ### NUTS: 9052
             ### Metropolis HMC: 9620
             v_crude = 9_620
-            target = get_target(LogGaussianCoxPointProcess(datadir(), n_grids))
+            target = LogGaussianCoxPointProcess(datadir(), n_grids)
             if TS == MetropolisTS
                 ϵ, L = 0.13, 10
             elseif TS == CoupledMultinomialTS{QuantileCoupling}
@@ -66,7 +69,10 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
         end
         @info "Asymptotic variance: $v_crude" 
 
-        alg = CoupledHMCSampler(rinit=randn, TS=TS, ϵ=ϵ, L=L, γ=gamma, σ=sigma)
+        alg = CoupledHMCSampler(
+            rinit=randn, TS=TS, ϵ=ϵ, L=L, γ=gamma, σ=sigma,
+            momentum_refreshment=refreshment
+        )
         τs = zeros(Int, n_mc_taus)
         progress = Progress(n_mc_taus)
         Threads.@threads for i in 1:n_mc_taus

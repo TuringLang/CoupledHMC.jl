@@ -1,17 +1,24 @@
 using DrWatson
 @quickactivate "Research"
 
-using Comonicon, ProgressMeter, CoupledHMC, VecTarget
+import Research
+using Comonicon, ProgressMeter, CoupledHMC, VecTargets
 
 @main function exp_gmm(
-    TS, epsilon::Float64, L::Int; 
+    refreshment, TS, epsilon::Float64, L::Int;
     n_mc::Int=500, n_samples_max::Int=100, gamma::Float64=1/20, sigma::Float64=1e-3
 )
-    fname = savename(@ntuple(TS, epsilon, L), "bson"; connector="-")
-    TS = Base.eval(CoupledHMC, Meta.parse(TS)) # parse TS
+    fname = savename(@ntuple(refreshment, TS, epsilon, L, gamma, sigma, n_mc, n_samples_max), "bson"; connector="-")
 
-    target = get_target(TwoDimGaussianMixtures())
-    alg = CoupledHMCSampler(rinit=rand, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma)
+    refreshment = Research.parse_refreshment(refreshment)
+    TS = Research.parse_trajectory_sampler(TS)
+    alg = CoupledHMCSampler(
+        rinit=rand, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma,
+        momentum_refreshment=refreshment
+    )
+
+    target = TwoDimGaussianMixtures()
+
     does_meets = Vector{Bool}(undef, n_mc)
     progress = Progress(n_mc)
     Threads.@threads for i in 1:n_mc

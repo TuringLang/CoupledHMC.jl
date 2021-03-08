@@ -4,7 +4,7 @@ using DrWatson
 using InteractiveUtils
 versioninfo()
 
-refreshment_list = ["shared", "contractive"]
+refreshment_list = ["SharedRefreshment", "ContractiveRefreshment"]
 
 TS_list = [
     "MetropolisTS",
