@@ -2,6 +2,7 @@ using DrWatson
 @quickactivate "Research"
 
 using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets, Research
+include(scriptsdir("helper.jl"))
 
 @main function exp_biasvariance(
     model, TS;
@@ -12,8 +13,8 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets, Research
     fname = savename(@ntuple(model, TS), "bson"; connector="-")
     fpath = projectdir("results", "biasvariance", fname)
 
-    refreshment = Research.parse_refreshment(refreshment)
-    TS = Research.parse_trajectory_sampler(TS)
+    refreshment = parse_refreshment(refreshment)
+    TS = parse_trajectory_sampler(TS)
 
     if isfile(fpath)
         @info "$fpath exists -- skipping."
@@ -29,7 +30,7 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets, Research
             # v_of(samples[1_000+1:end])
             ### Metropolis HMC: 34.91
             v_crude = 34.91
-            target = LogisticRegression(datadir(), lambda)
+            target = LogisticRegression(lambda)
             if TS == MetropolisTS
                 ϵ, L = 0.0125, 10
             elseif TS == CoupledMultinomialTS{QuantileCoupling}
@@ -50,7 +51,7 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets, Research
             ### NUTS: 9052
             ### Metropolis HMC: 9620
             v_crude = 9_620
-            target = LogGaussianCoxPointProcess(datadir(), n_grids)
+            target = LogGaussianCoxPointProcess(n_grids)
             if TS == MetropolisTS
                 ϵ, L = 0.13, 10
             elseif TS == CoupledMultinomialTS{QuantileCoupling}

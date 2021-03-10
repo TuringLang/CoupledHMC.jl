@@ -137,12 +137,13 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
 end
 
 function get_ahmc_primitives(target, alg::CoupledHMCSampler, theta0)
+    rng_init = MersenneTwister(randseed())
     rng = MersenneTwister(fill(randseed(), 2))
 
     if isnothing(theta0)
         # Sample (X_0, Y_0)
-        x0 = alg.rinit(rng[1], VecTargets.dim(target))
-        y0 = alg.rinit(rng[2], VecTargets.dim(target))
+        x0 = alg.rinit(rng_init, VecTargets.dim(target))
+        y0 = alg.rinit(rng_init, VecTargets.dim(target))
         # Transit X_0 to X_1
         samples = sample(target, HMCSampler(rinit=alg.rinit, TS=alg.TS, ϵ=alg.ϵ, L=alg.L), 1; theta0=x0)
         # Return (X_1, Y_0)

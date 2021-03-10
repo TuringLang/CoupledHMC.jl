@@ -1,7 +1,8 @@
 using DrWatson
 @quickactivate "Research"
 
-using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
+using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets
+include(scriptsdir("helper.jl"))
 
 @main function exp_meeting(
     model, TS, epsilon::Float64, L::Int;
@@ -12,8 +13,8 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
     fname = savename(@ntuple(model, TS, epsilon, L), "bson"; connector="-")
     fpath = projectdir("results", "meeting", fname)
 
-    refreshment = Research.parse_refreshment(refreshment)
-    TS = Research.parse_trajectory_sampler(TS)
+    refreshment = parse_refreshment(refreshment)
+    TS = parse_trajectory_sampler(TS)
 
     if isfile(fpath)
         @info "$fpath exists -- skipping."
@@ -22,9 +23,9 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
         if model == "gaussian"
             target = HighDimGaussian(1_000)
         elseif model == "lr"
-            target = LogisticRegression(datadir(), lambda)
+            target = LogisticRegression(lambda)
         elseif model == "coxprocess"
-            target = LogGaussianCoxPointProcess(datadir(), n_grids)
+            target = LogGaussianCoxPointProcess(n_grids)
         else
             error("Unkown model name $model.")
         end

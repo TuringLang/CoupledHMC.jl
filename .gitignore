@@ -3,6 +3,8 @@
 .history
 research/plots
 research/results
+Manifest.toml
+!research/Manifest.toml
 
 ################################################################################
 #                          DrWatson Project Structure                          #
