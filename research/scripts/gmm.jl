@@ -6,10 +6,11 @@ using VecTargets: GaussianMixtures
 include(scriptsdir("helper.jl"))
 
 @main function exp_gmm(
-    refreshment, TS, epsilon::Float64, L::Int;
-    n_mc::Int=500, n_samples_max::Int=100, gamma::Float64=1/20, sigma::Float64=1e-3
+    TS, epsilon::Float64, L::Int;
+    n_mc::Int=500, n_samples_max::Int=100, gamma::Float64=1/20, sigma::Float64=1e-3,
+    refreshment::String="SharedRefreshment",
 )
-    fname = savename(@ntuple(refreshment, TS, epsilon, L, gamma, sigma, n_mc, n_samples_max), "bson"; connector="-")
+    fname = savename(@ntuple(TS, epsilon, L), "bson"; connector="-")
 
     refreshment = parse_refreshment(refreshment)
     TS = parse_trajectory_sampler(TS)
