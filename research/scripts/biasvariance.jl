@@ -1,7 +1,7 @@
 using DrWatson
 @quickactivate "Research"
 
-using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets, Research
+using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets
 include(scriptsdir("helper.jl"))
 
 @main function exp_biasvariance(
@@ -28,7 +28,10 @@ include(scriptsdir("helper.jl"))
             # alg = CrudeHMC(0.03, 10, EndPointTS)
             # samples = get_samples(target, alg, 1_000 + 10_000; progress=true)
             # v_of(samples[1_000+1:end])
+            ### NUTS: 20.93; adapted parameters: 0.02, 24
+            ### Multinomial HMC: 38.09
             ### Metropolis HMC: 34.91
+            # NOTE: We are conservative here by using Metropolis HMC's asymptotic variance.
             v_crude = 34.91
             target = LogisticRegression(lambda)
             if TS == MetropolisTS
