@@ -1,7 +1,8 @@
 using DrWatson
 @quickactivate "Research"
 
-using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
+using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets
+include(scriptsdir("helper.jl"))
 
 @main function exp_banana(
     refreshment, TS;
@@ -9,12 +10,16 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
     epsilon::Float64=1/50, L::Int=50, gamma::Float64=1/20, sigma::Float64=1e-3
 )
     fname = savename(@ntuple(refreshment, TS), "bson"; connector="-")
-    refreshment = Symbol(refreshment) # parse refreshment
-    TS = Base.eval(CoupledHMC, Meta.parse(TS)) # parse TS
-    
-    target = get_target(Banana())
-    set_refreshment!(refreshment)
-    alg = CoupledHMCSampler(rinit=rand, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma)
+
+    refreshment = parse_refreshment(refreshment)
+    TS = parse_trajectory_sampler(TS)
+    alg = CoupledHMCSampler(
+        rinit=rand, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma,
+        momentum_refreshment=refreshment
+    )
+
+    target = Banana()
+
     τs = zeros(Int, n_mc)
     progress = Progress(n_mc)
     Threads.@threads for i in 1:n_mc

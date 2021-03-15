@@ -1,16 +1,20 @@
 using DrWatson
 @quickactivate "Research"
 
-using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
+using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets
+include(scriptsdir("helper.jl"))
 
 @main function exp_biasvariance(
     model, TS;
     n_mc_taus::Int=100, n_mc_long::Int=100, n_samples_max::Int=1_000, 
-    gamma::Float64=1/20, sigma::Float64=1e-3, lambda::Float64=0.01, n_grids::Int=16
+    gamma::Float64=1/20, sigma::Float64=1e-3, lambda::Float64=0.01, n_grids::Int=16,
+    refreshment::String="SharedRefreshment"
 )
     fname = savename(@ntuple(model, TS), "bson"; connector="-")
     fpath = projectdir("results", "biasvariance", fname)
-    TS = Base.eval(CoupledHMC, Meta.parse(TS)) # parse TS
+
+    refreshment = parse_refreshment(refreshment)
+    TS = parse_trajectory_sampler(TS)
 
     if isfile(fpath)
         @info "$fpath exists -- skipping."
@@ -24,9 +28,12 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
             # alg = CrudeHMC(0.03, 10, EndPointTS)
             # samples = get_samples(target, alg, 1_000 + 10_000; progress=true)
             # v_of(samples[1_000+1:end])
+            ### NUTS: 20.93; adapted parameters: 0.02, 24
+            ### Multinomial HMC: 38.09
             ### Metropolis HMC: 34.91
+            # NOTE: We are conservative here by using Metropolis HMC's asymptotic variance.
             v_crude = 34.91
-            target = get_target(LogisticRegression(datadir(), lambda))
+            target = LogisticRegression(lambda)
             if TS == MetropolisTS
                 ϵ, L = 0.0125, 10
             elseif TS == CoupledMultinomialTS{QuantileCoupling}
@@ -47,7 +54,7 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
             ### NUTS: 9052
             ### Metropolis HMC: 9620
             v_crude = 9_620
-            target = get_target(LogGaussianCoxPointProcess(datadir(), n_grids))
+            target = LogGaussianCoxPointProcess(n_grids)
             if TS == MetropolisTS
                 ϵ, L = 0.13, 10
             elseif TS == CoupledMultinomialTS{QuantileCoupling}
@@ -66,7 +73,10 @@ using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTarget
         end
         @info "Asymptotic variance: $v_crude" 
 
-        alg = CoupledHMCSampler(rinit=randn, TS=TS, ϵ=ϵ, L=L, γ=gamma, σ=sigma)
+        alg = CoupledHMCSampler(
+            rinit=randn, TS=TS, ϵ=ϵ, L=L, γ=gamma, σ=sigma,
+            momentum_refreshment=refreshment
+        )
         τs = zeros(Int, n_mc_taus)
         progress = Progress(n_mc_taus)
         Threads.@threads for i in 1:n_mc_taus

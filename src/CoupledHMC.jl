@@ -4,6 +4,8 @@ using RCall, ProgressMeter, Logging
 using Random, LinearAlgebra, Statistics, Distances, Distributions, JuMP, Clp, OptimalTransport, AdvancedHMC
 using DocStringExtensions: TYPEDEF, TYPEDFIELDS
 
+import VecTargets
+
 function __init__()
     R"library(coda)"
 end
@@ -12,48 +14,19 @@ include("utilities.jl")
 export rands
 
 ### AdvancedHMC extensions
-
-using AdvancedHMC: AdvancedHMC, PhasePoint, sample_init
-
-const REFRESHMENT = Ref(:shared)
-
-function set_refreshment!(refreshment)
-    !(refreshment in (:shared, :contractive)) && error("Unsupoorted refreshment: $refreshment")
-    REFRESHMENT[] = refreshment
-end
-
-function AdvancedHMC.refresh(
-    rng::AbstractVector{<:MersenneTwister},
-    z::PhasePoint,
-    h::Hamiltonian
-)
-    if REFRESHMENT[] == :shared
-        z = phasepoint(h, z.θ, rand(rng, h.metric))
-    elseif REFRESHMENT[] == :contractive
-        κ = 1.0
-        x, y = z.θ[:,1], z.θ[:,2]
-        Δ = x - y
-        normΔ = norm(Δ)
-        Δ̄ = Δ / normΔ
-        rx = rand(rng, h.metric)[:,1]
-        logu = log(rand())
-        prob = logpdf(Normal(0, 1), Δ̄' * rx + κ * normΔ) - logpdf(Normal(0, 1), Δ̄' * rx)
-        ry = logu < prob ? rx + κ * Δ : rx - 2 * (Δ̄' * rx) * Δ̄
-        z = phasepoint(h, z.θ, cat(rx, ry; dims=2))
-    end
-    return z
-end
+include("refreshments.jl")
+export SharedRefreshment, ContractiveRefreshment
 
 struct HMCIterator
     rng
     h
-    τ
+    κ
     θ0
 end
 
 # FIXME: Adaptation is not supported.
 function Base.iterate(iter::HMCIterator, state=sample_init(iter.rng, iter.h, iter.θ0)[2])
-    state = step(iter.rng, iter.h, iter.τ, state.z)
+    state = transition(iter.rng, iter.h, iter.κ, state.z)
     return (state.z.θ, state)
 end
 
@@ -61,8 +34,10 @@ include("couplings.jl")
 export IndependentCoupling, QuantileCoupling, MaximalCoupling, OTCoupling, ApproximateOTCoupling
 
 include("kernels.jl")
+include("trajectory_samplers.jl")
+
 const MetropolisTS = EndPointTS
-export set_refreshment!, MetropolisTS, MultinomialTS, CoupledMultinomialTS
+export EndPointTS, MetropolisTS, MultinomialTS, CoupledMultinomialTS
 
 ### CoupledHMC abstractions
 abstract type AbstractSampler end
@@ -77,12 +52,14 @@ Base.@kwdef struct HMCSampler{
     _TS<:AbstractTrajectorySampler, 
     F<:Union{AbstractFloat, Missing}, 
     I<:Union{Int, Missing}, 
-    R<:Function
+    R<:Function,
+    MR<:AbstractMomentumRefreshment
 } <: AbstractSampler
     rinit::R
     TS::Type{_TS}
     ϵ::F=missing
     L::I=missing
+    momentum_refreshment::MR=SharedRefreshment()
 end
 
 """
@@ -95,7 +72,10 @@ enabled by using a tuning parameter `κ` larger than 0.
 $(TYPEDFIELDS)
 """
 Base.@kwdef struct CoupledHMCSampler{
-    _TS<:AbstractTrajectorySampler, F<:AbstractFloat, R<:Function
+    _TS<:AbstractTrajectorySampler,
+    F<:AbstractFloat,
+    R<:Function,
+    MR<:AbstractMomentumRefreshment
 } <: AbstractSampler
     rinit::R
     TS::Type{_TS}
@@ -104,6 +84,7 @@ Base.@kwdef struct CoupledHMCSampler{
     γ::F=1/20
     σ::F=1e-3
     κ::F=0.0
+    momentum_refreshment::MR=SharedRefreshment()
 end
 export HMCSampler, CoupledHMCSampler
 
@@ -112,18 +93,32 @@ export get_k_m, does_meet, τ_of, H_of, i_of, v_of
 
 ### Sampling interface for `AbstractSampler`
 function get_ahmc_primitives(target, alg::HMCSampler, theta0)
-    if isnothing(theta0)
-        theta0 = alg.rinit(target.dim)
-    end
     rng = MersenneTwister(randseed())
-    metric = UnitEuclideanMetric(target.dim)
-    hamiltonian = Hamiltonian(metric, target.logdensity, target.get_grad(theta0))
+
+    if isnothing(theta0)
+        theta0 = alg.rinit(rng, VecTargets.dim(target))
+    end
+
+    metric = UnitEuclideanMetric(VecTargets.dim(target))
+    hamiltonian = begin
+        logπ(θ) = VecTargets.logpdf(target, θ)
+        gradlogπ(θ) = VecTargets.logpdf_grad(target, θ)
+        Hamiltonian(metric, logπ, gradlogπ)
+    end
+
+    momentum_refreshment = if (alg.momentum_refreshment isa SharedRefreshment) || (alg.momentum_refresment isa ContractiveRefreshment)
+        AdvancedHMC.FullMomentumRefreshment()
+    else
+        alg.momentum_refreshment
+    end
+
     if ismissing(alg.ϵ) && ismissing(alg.L)
-        integrator = Leapfrog(find_good_stepsize(hamiltonian, theta0))
+        integrator = Leapfrog(find_good_stepsize(rng, hamiltonian, theta0))
         @assert alg.TS <: MultinomialTS
-        proposal = NUTS{MultinomialTS, GeneralisedNoUTurn}(integrator)
+        trajectory = Trajectory{MultinomialTS}(integrator, GeneralisedNoUTurn())
         adaptor = StanHMCAdaptor(MassMatrixAdaptor(metric), StepSizeAdaptor(0.8, integrator))
-        return rng, hamiltonian, proposal, adaptor, theta0
+        kernel = HMCKernel(momentum_refreshment, trajectory)
+        return rng, hamiltonian, kernel, adaptor, theta0
     else
         integrator = Leapfrog(alg.ϵ)
         # Get the corresponding marginal trajectory sampler
@@ -134,35 +129,49 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
         else
             error("Marginal sampler for `$(alg.TS)` is not defined.")
         end
-        proposal = StaticTrajectory{TS}(integrator, alg.L)
-        return rng, hamiltonian, proposal, theta0
+        trajectory = Trajectory{TS}(integrator, FixedNSteps(alg.L))
+        kernel = HMCKernel(momentum_refreshment, trajectory)
+
+        return rng, hamiltonian, kernel, theta0
     end
 end
 
 function get_ahmc_primitives(target, alg::CoupledHMCSampler, theta0)
+    rng_init = MersenneTwister(randseed())
+    rng = MersenneTwister(fill(randseed(), 2))
+
     if isnothing(theta0)
         # Sample (X_0, Y_0)
-        x0, y0 = alg.rinit(target.dim), alg.rinit(target.dim)
+        x0 = alg.rinit(rng_init, VecTargets.dim(target))
+        y0 = alg.rinit(rng_init, VecTargets.dim(target))
         # Transit X_0 to X_1
         samples = sample(target, HMCSampler(rinit=alg.rinit, TS=alg.TS, ϵ=alg.ϵ, L=alg.L), 1; theta0=x0)
         # Return (X_1, Y_0)
         theta0 = cat(samples[end], y0; dims=2)
     end
-    rng = MersenneTwister(fill(randseed(), 2))
-    metric = UnitEuclideanMetric((target.dim, 2))
-    hamiltonian = Hamiltonian(metric, target.logdensity, target.get_grad(theta0))
+
+    metric = UnitEuclideanMetric((VecTargets.dim(target), 2))
+    hamiltonian = begin
+        logπ(θ) = VecTargets.logpdf(target, θ)
+        gradlogπ(θ) = VecTargets.logpdf_grad(target, θ)
+        Hamiltonian(metric, logπ, gradlogπ)
+    end
+
     integrator = Leapfrog(fill(alg.ϵ, 2))
-    proposal = 
-    if iszero(alg.κ)
-        MixtureProposal(
-            alg.γ, MaxCoupledMH(alg.σ), StaticTrajectory{alg.TS}(integrator, alg.L)
+    trajectory = Trajectory{alg.TS}(integrator, FixedNSteps(alg.L))
+    kernel_hmc = HMCKernel(alg.momentum_refreshment, trajectory)
+    kernel = if iszero(alg.κ)
+        kernel_mh = MaxCoupledMH(alg.σ)
+        MixtureKernel(
+            alg.γ, kernel_mh, kernel_hmc
         )
     else
-        MixtureProposal(
-            alg.γ, RefMaxCoupledMH(alg.σ, alg.κ), StaticTrajectory{alg.TS}(integrator, alg.L),
+        kernel_mh = RefMaxCoupledMH(alg.σ, alg.κ)
+        MixtureKernel(
+            alg.γ, kernel_hm, kernel_hmc,
         )
     end
-    return rng, hamiltonian, proposal, theta0
+    return rng, hamiltonian, kernel, theta0
 end
 
 function sample(target, alg::HMCSampler, n_samples::Int; theta0=nothing, progress=false)

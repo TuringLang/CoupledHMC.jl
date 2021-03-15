@@ -1,17 +1,28 @@
 using DrWatson
 @quickactivate "Research"
 
-using Comonicon, ProgressMeter, CoupledHMC, VecTarget
+using Comonicon, ProgressMeter, CoupledHMC, VecTargets
+using VecTargets: GaussianMixtures
+include(scriptsdir("helper.jl"))
 
 @main function exp_gmm(
-    TS, epsilon::Float64, L::Int; 
-    n_mc::Int=500, n_samples_max::Int=100, gamma::Float64=1/20, sigma::Float64=1e-3
+    TS, epsilon::Float64, L::Int;
+    n_mc::Int=500, n_samples_max::Int=100, gamma::Float64=1/20, sigma::Float64=1e-3,
+    refreshment::String="SharedRefreshment",
 )
     fname = savename(@ntuple(TS, epsilon, L), "bson"; connector="-")
-    TS = Base.eval(CoupledHMC, Meta.parse(TS)) # parse TS
 
-    target = get_target(TwoDimGaussianMixtures())
-    alg = CoupledHMCSampler(rinit=rand, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma)
+    refreshment = parse_refreshment(refreshment)
+    TS = parse_trajectory_sampler(TS)
+    alg = CoupledHMCSampler(
+        rinit=rand, TS=TS, ϵ=epsilon, L=L, γ=gamma, σ=sigma,
+        momentum_refreshment=refreshment
+    )
+
+    target = GaussianMixtures(
+        [0.25, 0.4, 0.35], [-1.0 0.0 1.0; -1.0 0.0 1.0], [0.25]
+    )
+    
     does_meets = Vector{Bool}(undef, n_mc)
     progress = Progress(n_mc)
     Threads.@threads for i in 1:n_mc
