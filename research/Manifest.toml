@@ -180,7 +180,7 @@ uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.5.7"
 
 [[CoupledHMC]]
-deps = ["AdvancedHMC", "Clp", "Distances", "Distributions", "DocStringExtensions", "IterTools", "JuMP", "LinearAlgebra", "Logging", "OptimalTransport", "ProgressMeter", "RCall", "Random", "Statistics", "VecTargets"]
+deps = ["AdvancedHMC", "Clp", "Distances", "Distributions", "DocStringExtensions", "IterTools", "JuMP", "LinearAlgebra", "Logging", "OptimalTransport", "ProgressMeter", "RCall", "Random", "Statistics"]
 path = ".."
 uuid = "2b235a6e-c7ff-4bf8-b98e-bb5eae5895d5"
 version = "0.1.0"
@@ -826,10 +826,10 @@ uuid = "79098fc4-a85e-5d69-aa6a-4863f24498fa"
 version = "0.6.1"
 
 [[Rmath_jll]]
-deps = ["Libdl", "Pkg"]
-git-tree-sha1 = "d76185aa1f421306dec73c057aa384bad74188f0"
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "1b7bf41258f6c5c9c31df8c1ba34c1fc88674957"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
-version = "0.2.2+1"
+version = "0.2.2+2"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
@@ -968,7 +968,9 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[VecTargets]]
 deps = ["BSON", "Distributions", "DistributionsAD", "Parameters", "Random", "ReverseDiff", "StatsFuns"]
-path = "../../VecTargets.jl"
+git-tree-sha1 = "7f92768bddfc8fc3a4f7ee502b1c273f4a75417e"
+repo-rev = "main"
+repo-url = "https://github.com/xukai92/VecTargets.jl"
 uuid = "8a639fad-7908-4fe4-8003-906e9297f002"
 version = "0.1.0"
 
