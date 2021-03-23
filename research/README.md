@@ -1,7 +1,7 @@
 This folder contains the source code for producing the results in the AISTATS 2021 paper 
 *Couplings for Multinomial Hamiltonian Monte Carlo* by Kai Xu, Tor Erlend Fjelde, Charles Sutton and Hong Ge.
 
-You can cite this paper using the Bib-TeX entry below.
+You can cite this paper using the BibTeX entry below.
 
 ```
 @inproceedings{xu2021couplings,

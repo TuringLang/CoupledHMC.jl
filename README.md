@@ -5,7 +5,7 @@ This package implemented the coupled HMC kernels used in the AISTATS 2021 paper
 
 See the `research` folder for scripts to reproduce the results.
 
-You can cite this paper using the Bib-TeX entry below.
+You can cite this paper using the BibTeX entry below.
 
 ```
 @inproceedings{xu2021couplings,
