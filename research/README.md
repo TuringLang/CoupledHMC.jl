@@ -18,14 +18,11 @@ The code for coupled HMC kernels are based on [AdvancedHMC.jl](https://github.co
 
 You will need to have [Julia](https://julialang.org/) installed first.
 After this, make sure [DrWatson.jl](https://github.com/JuliaDynamics/DrWatson.jl) is installed globally.
-This can be done by doing `] add DrWatson` in the Julia REPL.
+This can be done by running `julia -e 'using Pkg; Pkg.add("DrWatson")'` in your shell or `] add DrWatson` in the Julia REPL.
 
 ## How to set up the dependencies
 
-Before the first time of running scripts, you will have to
-1. Start the REPL from this folder
-2. Activate the environment by `] activate .`
-3. do `] instantiate` to instantiate all the dependencies
+Before the first time of running scripts, you will have run `julia --project -e "using Pkg; Pkg.instantiate()"` from this folder.
 
 This is the only time for which you need to activate the environment (manually).
 DrWatson.jl will save your effort of activating environments in the future.
