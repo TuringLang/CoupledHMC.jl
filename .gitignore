@@ -4,8 +4,6 @@
 research/plots
 research/results
 research/.gmm.cmd
-Manifest.toml
-!research/Manifest.toml
 
 ################################################################################
 #                          DrWatson Project Structure                          #
