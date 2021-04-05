@@ -16,3 +16,19 @@ You can cite this paper using the BibTeX entry below.
 }
 ```
 
+## Using this package directly
+
+If you would like to use `CoupledHMC` without going through our `research` folder,
+you will have to install `VecTarget`(https://github.com/xukai92/VecTargets.jl) and the master branch of `AdvancedHMC` manually.
+For example, running the command below will install them globally
+
+``` sh
+julia -e 'using Pkg; Pkg.add(url="https://github.com/xukai92/VecTargets.jl"); Pkg.add(name="AdvancedHMC", rev="master")'
+```
+
+Or below to install inside your local environment
+
+``` sh
+julia --project=@. -e 'using Pkg; Pkg.add(url="https://github.com/xukai92/VecTargets.jl"); Pkg.add(name="AdvancedHMC", rev="master")'
+```
+
