@@ -51,7 +51,7 @@ Base.@kwdef struct HMCSampler{
     F<:Union{AbstractFloat, Missing}, 
     I<:Union{Int, Missing}, 
     R<:Function,
-    MR<:AbstractMomentumRefreshment
+    MR<:AdvancedHMC.AbstractMomentumRefreshment
 } <: AbstractSampler
     rinit::R
     TS::Type{_TS}
@@ -73,7 +73,7 @@ Base.@kwdef struct CoupledHMCSampler{
     _TS<:AdvancedHMC.AbstractTrajectorySampler,
     F<:AbstractFloat,
     R<:Function,
-    MR<:AbstractMomentumRefreshment
+    MR<:AdvancedHMC.AbstractMomentumRefreshment
 } <: AbstractSampler
     rinit::R
     TS::Type{_TS}

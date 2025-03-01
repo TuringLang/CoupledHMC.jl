@@ -10,7 +10,7 @@ function AdvancedHMC.transition(
     rng::AbstractRNG,
     h::Hamiltonian,
     mix::MixtureKernel,
-    z::PhasePoint
+    z::AdvancedHMC.PhasePoint
 )
     return if rand(rng) < mix.γ
         AdvancedHMC.transition(rng, h, mix.τ1, z)
@@ -23,7 +23,7 @@ function AdvancedHMC.transition(
     rng::AbstractVector{<:AbstractRNG},
     h::Hamiltonian,
     mix::MixtureKernel,
-    z::PhasePoint
+    z::AdvancedHMC.PhasePoint
 )
     # TODO: is this always the correct thing to do?
     # Ideally we'd allow different elements in the "batch"/vectorization

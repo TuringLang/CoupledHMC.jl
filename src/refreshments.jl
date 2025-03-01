@@ -15,7 +15,7 @@ function AdvancedHMC.refresh(
     rng::Union{AbstractRNG, AbstractVector{<:AbstractRNG}},
     ::ContractiveRefreshment,
     h::Hamiltonian,
-    z::AdvancedHMC.Phasepoint
+    z::AdvancedHMC.PhasePoint
 )
     κ = 1.0
     x, y = z.θ[:,1], z.θ[:,2]
