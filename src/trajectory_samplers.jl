@@ -1,10 +1,8 @@
-import AdvancedHMC: AdvancedHMC.AbstractTrajectorySampler
-
 struct CoupledMultinomialTS{C<:AbstractCoupling} <: AdvancedHMC.AbstractTrajectorySampler end
 
-function AdvancedHMC.sample_AdvancedHMC.phasepoint(
+function AdvancedHMC.sample_phasepoint(
     rng,
-    τ::Trajectory{CoupledMultinomialTS{C}},
+    τ::AdvancedHMC.Trajectory{CoupledMultinomialTS{C}},
     h,
     z
 ) where {C}
@@ -21,6 +19,7 @@ function AdvancedHMC.sample_AdvancedHMC.phasepoint(
         τ.integrator, h, z, n_steps_bwd;
         fwd=false, full_trajectory=Val(true)
     )
+    # TODO(tor): This seems like a bad idea. Let's check this.
     zs = vcat(reverse(zs_bwd)..., z, zs_fwd...)
     ℓweights = -AdvancedHMC.energy.(zs)
     if eltype(ℓweights) <: AbstractVector
@@ -29,6 +28,7 @@ function AdvancedHMC.sample_AdvancedHMC.phasepoint(
     unnorm_ℓprob = ℓweights
     prob = exp.(unnorm_ℓprob .- AdvancedHMC.logsumexp(unnorm_ℓprob; dims=2))
 
+    # TODO(tor): Improve this.
     if C == QuantileCoupling || C == MaximalCoupling
         coupling = C(prob[1,:], prob[2,:])
     elseif C == OTCoupling || C == ApproximateOTCoupling
