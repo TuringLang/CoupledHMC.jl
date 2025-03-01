@@ -120,6 +120,7 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
     else
         integrator = Leapfrog(alg.ϵ)
         # Get the corresponding marginal trajectory sampler
+        # TODO(tor): Improve this.
         TS = if alg.TS <: EndPointTS
             EndPointTS
         elseif alg.TS <: CoupledMultinomialTS || alg.TS <: MultinomialTS
@@ -134,6 +135,7 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
     end
 end
 
+# TODO(tor): Improve this so we can run on more targets.
 function get_ahmc_primitives(target, alg::CoupledHMCSampler, theta0)
     rng_init = MersenneTwister(randseed())
     rng = MersenneTwister(fill(randseed(), 2))
