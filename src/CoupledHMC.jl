@@ -134,7 +134,7 @@ logdensity(f::VecTargetModelTypes, x::AbstractMatrix) = VecTargets.logpdf(f, x)
 logdensity_and_gradient(f::VecTargetModelTypes, x::AbstractVector) = VecTargets.logpdf_grad(f, x)
 logdensity_and_gradient(f::VecTargetModelTypes, x::AbstractMatrix) = VecTargets.logpdf_grad(f, x)
 
-target_dim(f::VecTargetModels) = VecTargets.dim(f)
+target_dim(f::VecTargetModelTypes) = VecTargets.dim(f)
 
 ### Sampling interface for `AbstractSampler`
 function get_ahmc_primitives(target, alg::HMCSampler, theta0)
