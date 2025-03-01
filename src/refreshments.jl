@@ -31,7 +31,7 @@ function AdvancedHMC.refresh(
         ry = rx
     else
         Δ̄ = Δ / normΔ
-        logu = log(rand(rng))
+        logu = log(rand())
         prob = logpdf(Normal(0, 1), Δ̄' * rx + κ * normΔ) - logpdf(Normal(0, 1), Δ̄' * rx)
         ry = logu < prob ? rx + κ * Δ : rx - 2 * (Δ̄' * rx) * Δ̄
     end
