@@ -18,4 +18,4 @@ RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
 VecTargets = "8a639fad-7908-4fe4-8003-906e9297f002"
 
 [compat]
-julia = "1.5.0"
+julia = "1"

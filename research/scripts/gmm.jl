@@ -5,7 +5,7 @@ using Comonicon, ProgressMeter, CoupledHMC, VecTargets
 using VecTargets: GaussianMixtures
 include(scriptsdir("helper.jl"))
 
-@main function exp_gmm(
+Comonicon.@main function exp_gmm(
     TS, epsilon::Float64, L::Int;
     n_mc::Int=500, n_samples_max::Int=100, gamma::Float64=1/20, sigma::Float64=1e-3,
     refreshment::String="SharedRefreshment",
