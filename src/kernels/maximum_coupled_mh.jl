@@ -1,12 +1,10 @@
-import AdvancedHMC: transition, energy, Transition, mh_accept_ratio, accept_phasepoint!, @unpack
-
-struct MaxCoupledMH{F<:AbstractFloat} <: AbstractMCMCKernel
+struct MaxCoupledMH{F<:AbstractFloat} <: AdvancedHMC.AbstractMCMCKernel
     σ::F
 end
 
 # Ref: https://github.com/pierrejacob/debiasedhmc/blob/master/inst/scalingdimension/scaling.hmc.meetings.R#L101-L142
-function transition(rng, h, mh::MaxCoupledMH, z)
-    H0 = energy(z)
+function AdvancedHMC.transition(rng, h, mh::MaxCoupledMH, z)
+    H0 = AdvancedHMC.energy(z)
     @unpack θ, r = z
     x, y = θ[:, 1], θ[:, 2]
     p, q = MvNormal(x, mh.σ), MvNormal(y, mh.σ)
@@ -26,14 +24,14 @@ function transition(rng, h, mh::MaxCoupledMH, z)
         end
         cat(x, y′; dims=2)
     end
-    z′ = phasepoint(h, θ, r)
-    is_accept, α = mh_accept_ratio(rng, energy(z), energy(z′))
-    z = accept_phasepoint!(z, z′, is_accept)
-    H = energy(z)
+    z′ = AdvancedHMC.phasepoint(h, θ, r)
+    is_accept, α = AdvancedHMC.mh_accept_ratio(rng, AdvancedHMC.energy(z), AdvancedHMC.energy(z′))
+    z = AdvancedHMC.accept_phasepoint!(z, z′, is_accept)
+    H = AdvancedHMC.energy(z)
     tstat = (
         is_accept = is_accept,
         acceptance_rate = α,
         does_meet = does_meet,
     )
-    return Transition(z, tstat)
+    return AdvancedHMC.Transition(z, tstat)
 end

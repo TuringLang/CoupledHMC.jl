@@ -33,21 +33,21 @@ function reflmaxcoupling(rng, mu1, mu2, sqrtD, kappa)
 end
 
 function transition(rng, mh::RefMaxCoupledMH, h, z)
-    H0 = energy(z)
+    H0 = AdvancedHMC.energy(z)
     @unpack θ, r = z
     res = reflmaxcoupling(rng, θ[:,1], θ[:,2], mh.σ, mh.κ)
     θ = 
     let θ1 = θ[:,1] + res.momentum1
         cat(θ1, res.samesame ? θ1 : θ[:,2] + res.momentum2; dims=2)
     end
-    z′ = phasepoint(h, θ, r)
-    is_accept, α = mh_accept_ratio(rng, energy(z), energy(z′))
-    z = accept_phasepoint!(z, z′, is_accept)
-    H = energy(z)
+    z′ = AdvancedHMC.phasepoint(h, θ, r)
+    is_accept, α = AdvancedHMC.mh_accept_ratio(rng, AdvancedHMC.energy(z), AdvancedHMC.energy(z′))
+    z = AdvancedHMC.accept_phasepoint!(z, z′, is_accept)
+    H = AdvancedHMC.energy(z)
     tstat = (
         is_accept = is_accept,
         acceptance_rate = α,
         does_meet = all(is_accept) && res.samesame,
     )
-    return Transition(z, tstat)
+    return AdvancedHMC.Transition(z, tstat)
 end

@@ -10,14 +10,14 @@ function AdvancedHMC.refresh(
     h::Hamiltonian,
     z::PhasePoint
 )
-    return phasepoint(h, z.θ, rand(rng, h.metric))
+    return AdvancedHMC.phasepoint(h, z.θ, rand(rng, h.metric))
 end
 
 function AdvancedHMC.refresh(
     rng::Union{AbstractRNG, AbstractVector{<:AbstractRNG}},
     ::ContractiveRefreshment,
     h::Hamiltonian,
-    z::PhasePoint
+    z::AdvancedHMC.Phasepoint
 )
     κ = 1.0
     x, y = z.θ[:,1], z.θ[:,2]
@@ -32,5 +32,5 @@ function AdvancedHMC.refresh(
         prob = logpdf(Normal(0, 1), Δ̄' * rx + κ * normΔ) - logpdf(Normal(0, 1), Δ̄' * rx)
         ry = logu < prob ? rx + κ * Δ : rx - 2 * (Δ̄' * rx) * Δ̄
     end
-    return phasepoint(h, z.θ, cat(rx, ry; dims=2))
+    return AdvancedHMC.phasepoint(h, z.θ, cat(rx, ry; dims=2))
 end

@@ -1,6 +1,6 @@
 struct MixtureKernel{
-    F<:AbstractFloat, T1<:AbstractMCMCKernel, T2<:AbstractMCMCKernel
-} <: AbstractMCMCKernel
+    F<:AbstractFloat, T1<:AdvancedHMC.AbstractMCMCKernel, T2<:AdvancedHMC.AbstractMCMCKernel
+} <: AdvancedHMC.AbstractMCMCKernel
     γ::F
     τ1::T1
     τ2::T2

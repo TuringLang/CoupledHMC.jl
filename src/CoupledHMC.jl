@@ -1,10 +1,21 @@
 module CoupledHMC
 
-using RCall, ProgressMeter, Logging
-using Random, LinearAlgebra, Statistics, Distances, Distributions, JuMP, Clp, OptimalTransport, AdvancedHMC
+using RCall
+using ProgressMeter
+using Logging
+using Random
+using LinearAlgebra
+using Statistics
+using Distances
+using Distributions
+using JuMP
+using Clp
+using OptimalTransport
+using AdvancedHMC
 using DocStringExtensions: TYPEDEF, TYPEDFIELDS
+using SimpleUnPack: @unpack
 
-import VecTargets
+using VecTargets: VecTargets
 
 function __init__()
     R"library(coda)"
@@ -16,19 +27,6 @@ export rands
 ### AdvancedHMC extensions
 include("refreshments.jl")
 export SharedRefreshment, ContractiveRefreshment
-
-struct HMCIterator
-    rng
-    h
-    κ
-    θ0
-end
-
-# FIXME: Adaptation is not supported.
-function Base.iterate(iter::HMCIterator, state=sample_init(iter.rng, iter.h, iter.θ0)[2])
-    state = transition(iter.rng, iter.h, iter.κ, state.z)
-    return (state.z.θ, state)
-end
 
 include("couplings.jl")
 export IndependentCoupling, QuantileCoupling, MaximalCoupling, OTCoupling, ApproximateOTCoupling
@@ -49,7 +47,7 @@ HMC (without coupling) with trajectory sampler `TS`, step size `ϵ` and step num
 $(TYPEDFIELDS)
 """
 Base.@kwdef struct HMCSampler{
-    _TS<:AbstractTrajectorySampler, 
+    _TS<:AdvancedHMC.AbstractTrajectorySampler, 
     F<:Union{AbstractFloat, Missing}, 
     I<:Union{Int, Missing}, 
     R<:Function,
@@ -72,7 +70,7 @@ enabled by using a tuning parameter `κ` larger than 0.
 $(TYPEDFIELDS)
 """
 Base.@kwdef struct CoupledHMCSampler{
-    _TS<:AbstractTrajectorySampler,
+    _TS<:AdvancedHMC.AbstractTrajectorySampler,
     F<:AbstractFloat,
     R<:Function,
     MR<:AbstractMomentumRefreshment

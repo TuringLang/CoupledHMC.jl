@@ -1,8 +1,8 @@
-import AdvancedHMC: AbstractTrajectorySampler
+import AdvancedHMC: AdvancedHMC.AbstractTrajectorySampler
 
-struct CoupledMultinomialTS{C<:AbstractCoupling} <: AbstractTrajectorySampler end
+struct CoupledMultinomialTS{C<:AbstractCoupling} <: AdvancedHMC.AbstractTrajectorySampler end
 
-function AdvancedHMC.sample_phasepoint(
+function AdvancedHMC.sample_AdvancedHMC.phasepoint(
     rng,
     τ::Trajectory{CoupledMultinomialTS{C}},
     h,
