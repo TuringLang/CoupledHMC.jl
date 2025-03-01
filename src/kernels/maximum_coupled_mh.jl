@@ -8,17 +8,18 @@ function AdvancedHMC.transition(rng, h, mh::MaxCoupledMH, z)
     @unpack θ, r = z
     x, y = θ[:, 1], θ[:, 2]
     p, q = MvNormal(x, mh.σ), MvNormal(y, mh.σ)
-    x = rand(p)
+    x = rand(rng, p)
     does_meet = false
-    θ = if logpdf(p, x) + log(rand()) <= logpdf(q, x)
+    # TODO(tor): Can this not be done using MH ratio function?
+    θ = if logpdf(p, x) + log(rand(rng)) <= logpdf(q, x)
         does_meet = true
         cat(x, x; dims=2)
     else
         # `local` is necessary so that we can replace it within the `while` loop
         local y′
         while true
-            y′ = rand(q)
-            if logpdf(q, y′) + log(rand()) > logpdf(p, y′)
+            y′ = rand(rng, q)
+            if logpdf(q, y′) + log(rand(rng)) > logpdf(p, y′)
                 break
             end
         end

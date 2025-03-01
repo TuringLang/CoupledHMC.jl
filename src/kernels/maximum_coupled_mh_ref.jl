@@ -1,4 +1,4 @@
-struct RefMaxCoupledMH{F<:AbstractFloat} <: AbstractMCMCKernel
+struct RefMaxCoupledMH{F<:AbstractFloat} <: AdvancedHMC.AbstractMCMCKernel
     σ::F
     κ::F
 end
@@ -15,7 +15,8 @@ function reflmaxcoupling(rng, mu1, mu2, sqrtD, kappa)
     dim = size(mu1, 1)
     momentum1 = randn(dim)
 
-    logu = log(rand())
+    # TODO(tor): Use `randexp` and sign-flip instead.
+    logu = log(rand(rng))
     z = (mu1 - mu2) / sqrtD
     normz = sqrt(sum(z.^2))
     evector = z / normz
