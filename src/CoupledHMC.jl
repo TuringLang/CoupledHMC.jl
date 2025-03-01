@@ -15,6 +15,7 @@ using AdvancedHMC
 using DocStringExtensions: TYPEDEF, TYPEDFIELDS
 using SimpleUnPack: @unpack
 
+using LogDensityProblems: LogDensityProblems
 using VecTargets: VecTargets
 
 function __init__()
@@ -102,20 +103,53 @@ export HMCSampler, CoupledHMCSampler
 include("analysis.jl")
 export get_k_m, does_meet, τ_of, H_of, i_of, v_of
 
+# By default, we work with LogDensitProblems.jl models.
+logdensity(f, x::AbstractVector) = LogDensityProblems.logdensity(f, x)
+logdensity(f, x::AbstractMatrix) = map(Base.Fix1(logdensity, f), eachcol(x))
+
+function logdensity_and_gradient(f::VecTargetLogDensityWrapper, x::AbstractVector)
+    return LogDensityProblems.logdensity_and_gradient(f.f, x)
+end
+function logdensity_and_gradient(f::VecTargetLogDensityWrapper, x::AbstractMatrix)
+    result = map(Base.Fix1(LogDensityProblems.logdensity_and_gradient, f.f), eachcol(x))
+    lps = map(first, result)
+    grads = map(last, result)
+    return stack(lps), stack(grads)
+end
+
+target_dim(f) = LogDensityProblems.dimension(f.f)
+
+# For anything else that implements VecTargets.jl interface.
+const VecTargetModelTypes = Union{
+    VecTargets.HighDimGaussian,
+    VecTargets.LogisticRegression,
+    VecTargets.LogGaussianCoxPointProcess,
+    VecTargets.Banana,
+    VecTargets.Funnel,
+    VecTargets.Spiral
+}
+logdensity(f::VecTargetModelTypes, x::AbstractVector) = VecTargets.logpdf(f, x)
+logdensity(f::VecTargetModelTypes, x::AbstractMatrix) = VecTargets.logpdf(f, x)
+
+logdensity_and_gradient(f::VecTargetModelTypes, x::AbstractVector) = VecTargets.logpdf_grad(f, x)
+logdensity_and_gradient(f::VecTargetModelTypes, x::AbstractMatrix) = VecTargets.logpdf_grad(f, x)
+
+target_dim(f::VecTargetModels) = VecTargets.dim(f)
+
 ### Sampling interface for `AbstractSampler`
 function get_ahmc_primitives(target, alg::HMCSampler, theta0)
     rng = MersenneTwister(randseed())
 
     if isnothing(theta0)
-        theta0 = alg.rinit(rng, VecTargets.dim(target))
+        theta0 = alg.rinit(rng, target_dim(target))
     end
 
-    metric = AdvancedHMC.UnitEuclideanMetric(VecTargets.dim(target))
-    hamiltonian = begin
-        logπ(θ) = VecTargets.logpdf(target, θ)
-        gradlogπ(θ) = VecTargets.logpdf_grad(target, θ)
-        AdvancedHMC.Hamiltonian(metric, logπ, gradlogπ)
-    end
+    metric = AdvancedHMC.UnitEuclideanMetric(target_dim(target))
+    hamiltonian = AdvancedHMC.Hamiltonian(
+        metric,
+        Base.Fix1(logdensity, target),
+        Base.Fix1(logdensity_and_gradient, target)
+    )
 
     momentum_refreshment = if (alg.momentum_refreshment isa SharedRefreshment) || (alg.momentum_refresment isa ContractiveRefreshment)
         AdvancedHMC.FullMomentumRefreshment()
@@ -158,20 +192,20 @@ function get_ahmc_primitives(target, alg::CoupledHMCSampler, theta0)
 
     if isnothing(theta0)
         # Sample (X_0, Y_0)
-        x0 = alg.rinit(rng_init, VecTargets.dim(target))
-        y0 = alg.rinit(rng_init, VecTargets.dim(target))
+        x0 = alg.rinit(rng_init, target_dim(target))
+        y0 = alg.rinit(rng_init, target_dim(target))
         # Transit X_0 to X_1
         samples = sample(target, HMCSampler(rinit=alg.rinit, TS=alg.TS, ϵ=alg.ϵ, L=alg.L), 1; theta0=x0)
         # Return (X_1, Y_0)
         theta0 = cat(samples[end], y0; dims=2)
     end
 
-    metric = UnitEuclideanMetric((VecTargets.dim(target), 2))
-    hamiltonian = begin
-        logπ(θ) = VecTargets.logpdf(target, θ)
-        gradlogπ(θ) = VecTargets.logpdf_grad(target, θ)
-        AdvancedHMC.Hamiltonian(metric, logπ, gradlogπ)
-    end
+    metric = UnitEuclideanMetric((target_dim(target), 2))
+    hamiltonian = AdvancedHMC.Hamiltonian(
+        metric,
+        Base.Fix1(logdensity, target),
+        Base.Fix1(logdensity_and_gradient, target)
+    )
 
     integrator = Leapfrog(fill(alg.ϵ, 2))
     trajectory = Trajectory{alg.TS}(integrator, FixedNSteps(alg.L))
