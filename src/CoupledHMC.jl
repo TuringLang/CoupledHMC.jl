@@ -28,6 +28,19 @@ export rands
 include("refreshments.jl")
 export SharedRefreshment, ContractiveRefreshment
 
+struct HMCIterator
+    rng
+    h
+    κ
+    θ0
+end
+
+# FIXME: Adaptation is not supported.
+function Base.iterate(iter::HMCIterator, state=sample_init(iter.rng, iter.h, iter.θ0)[2])
+    state = transition(iter.rng, iter.h, iter.κ, state.z)
+    return (state.z.θ, state)
+end
+
 include("couplings.jl")
 export IndependentCoupling, QuantileCoupling, MaximalCoupling, OTCoupling, ApproximateOTCoupling
 
