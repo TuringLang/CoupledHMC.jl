@@ -107,10 +107,10 @@ export get_k_m, does_meet, τ_of, H_of, i_of, v_of
 logdensity(f, x::AbstractVector) = LogDensityProblems.logdensity(f, x)
 logdensity(f, x::AbstractMatrix) = map(Base.Fix1(logdensity, f), eachcol(x))
 
-function logdensity_and_gradient(f::VecTargetLogDensityWrapper, x::AbstractVector)
+function logdensity_and_gradient(f, x::AbstractVector)
     return LogDensityProblems.logdensity_and_gradient(f.f, x)
 end
-function logdensity_and_gradient(f::VecTargetLogDensityWrapper, x::AbstractMatrix)
+function logdensity_and_gradient(f, x::AbstractMatrix)
     result = map(Base.Fix1(LogDensityProblems.logdensity_and_gradient, f.f), eachcol(x))
     lps = map(first, result)
     grads = map(last, result)
