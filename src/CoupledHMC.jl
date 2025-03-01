@@ -36,7 +36,7 @@ struct HMCIterator
 end
 
 # FIXME: Adaptation is not supported.
-function Base.iterate(iter::HMCIterator, state=sample_init(iter.rng, iter.h, iter.θ0)[2])
+function Base.iterate(iter::HMCIterator, state=AdvancedHMC.sample_init(iter.rng, iter.h, iter.θ0)[2])
     state = transition(iter.rng, iter.h, iter.κ, state.z)
     return (state.z.θ, state)
 end
