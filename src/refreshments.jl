@@ -1,14 +1,12 @@
-using AdvancedHMC: AdvancedHMC, PhasePoint, sample_init, AbstractMomentumRefreshment
-
-struct SharedRefreshment <: AbstractMomentumRefreshment end
-struct ContractiveRefreshment <: AbstractMomentumRefreshment end
+struct SharedRefreshment <: AdvancedHMC.AbstractMomentumRefreshment end
+struct ContractiveRefreshment <: AdvancedHMC.AbstractMomentumRefreshment end
 
 
 function AdvancedHMC.refresh(
     rng::Union{AbstractRNG, AbstractVector{<:AbstractRNG}},
     ::SharedRefreshment,
     h::Hamiltonian,
-    z::PhasePoint
+    z::AdvancedHMC.PhasePoint
 )
     return AdvancedHMC.phasepoint(h, z.θ, rand(rng, h.metric))
 end
@@ -28,7 +26,7 @@ function AdvancedHMC.refresh(
         ry = rx
     else
         Δ̄ = Δ / normΔ
-        logu = log(rand())
+        logu = log(rand(rng))
         prob = logpdf(Normal(0, 1), Δ̄' * rx + κ * normΔ) - logpdf(Normal(0, 1), Δ̄' * rx)
         ry = logu < prob ? rx + κ * Δ : rx - 2 * (Δ̄' * rx) * Δ̄
     end
