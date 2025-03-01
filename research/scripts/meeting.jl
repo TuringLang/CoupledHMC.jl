@@ -4,7 +4,7 @@ using DrWatson
 using Comonicon, ProgressMeter, Statistics, CoupledHMC, VecTargets
 include(scriptsdir("helper.jl"))
 
-@main function exp_meeting(
+Comonicon.@main function exp_meeting(
     model, TS, epsilon::Float64, L::Int;
     n_mc::Int=10, n_samples_max::Int=1_000, gamma::Float64=1/20, sigma::Float64=1e-3,
     lambda::Float64=0.01, n_grids::Int=16, saveraw_on::Bool=false,
@@ -49,6 +49,7 @@ include(scriptsdir("helper.jl"))
         m, s = round(mean(τs); digits=3), round(std(τs); digits=3)
 
         @info "Average meeting time: $m +/- $s"
+        @info "Saving to $(fpath)"
         if saveraw_on
             wsave(fpath, @dict(τs, chains))
         else

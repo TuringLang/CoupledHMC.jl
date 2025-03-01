@@ -34,5 +34,7 @@ Comonicon.@main function exp_gmm(
     efficiency = round(n_meeting / n_mc; digits=3)
     
     @info "Efficiency: $efficiency"
-    wsave(projectdir("results", "gmm", fname), @dict(efficiency))
+    outpath = projectdir("results", "gmm", fname)
+    @info "Saving output to $(outpath)"
+    wsave(outpath, @dict(efficiency))
 end
