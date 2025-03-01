@@ -1,5 +1,8 @@
 abstract type AbstractCoupling end
 
+# TODO(tor): Add RNG to all of these. But need a splittable implementation for that, e.g.
+# - Random123.jl using `set_counter!`
+# - SplittableRandoms.jl: seems to be a decent impleemntation from JuliaTempering.
 Random.rand(c::AbstractCoupling) = rand_pair(c)
 
 "Independent coupling"
