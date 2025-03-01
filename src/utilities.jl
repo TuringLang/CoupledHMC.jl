@@ -37,14 +37,11 @@ Base.eltype(::Type{TakeUntil{I}}) where {I} = eltype(I)
 IteratorEltype(::Type{TakeUntil{I}}) where {I} = IteratorEltype(I)
 
 ### Random extensions
-
-using Random
-using Random: GLOBAL_RNG
-
+# TODO(tor): We REALLY shouldn't do this.
 Random.MersenneTwister(seeds::AbstractVector{Int}) = MersenneTwister.(seeds)
 
 "Sample a random seed to be used"
-randseed(rng=Random.GLOBAL_RNG) = rand(rng, Int16) + 2^16
+randseed(rng=Random.default_rng()) = rand(rng, Int16) + 2^16
 
 """
     rands(rng, dim::Int; R=1)
@@ -52,4 +49,4 @@ randseed(rng=Random.GLOBAL_RNG) = rand(rng, Int16) + 2^16
 Sample a `dim`-dimensional vector from U(`-R`, `R`).
 """
 rands(rng, dim::Int; R=1) = R * (2 * rand(rng, dim) .- 1)
-rands(args...; kwargs...) = rands(GLOBAL_RNG, args...; kwargs...)
+rands(args...; kwargs...) = rands(Random.default_rng(), args...; kwargs...)
