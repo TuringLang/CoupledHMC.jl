@@ -9,7 +9,10 @@ function AdvancedHMC.refresh(
     z::AdvancedHMC.PhasePoint
 )
     # TODO(tor): We're not passing `rng` here. We should find a better way.
-    return AdvancedHMC.phasepoint(h, z.θ, rand(h.metric, h.kinetic))
+    p = rand(h.metric, h.kinetic)[:, 1]
+    p_mat = repeat(p, 1, 2)
+    res = AdvancedHMC.phasepoint(h, z.θ, p_mat)
+    return res
 end
 
 function AdvancedHMC.refresh(
@@ -23,7 +26,7 @@ function AdvancedHMC.refresh(
     Δ = x - y
     normΔ = norm(Δ)
     # TODO(tor): We're not passing `rng` here. We should find a better way.
-    rx = rand(h.metric, h.kinetic)
+    rx = rand(h.metric, h.kinetic)[:, 1]
     if iszero(normΔ)
         ry = rx
     else
