@@ -5,23 +5,25 @@ struct ContractiveRefreshment <: AdvancedHMC.AbstractMomentumRefreshment end
 function AdvancedHMC.refresh(
     rng::Union{AbstractRNG, AbstractVector{<:AbstractRNG}},
     ::SharedRefreshment,
-    h::Hamiltonian,
+    h::AdvancedHMC.Hamiltonian,
     z::AdvancedHMC.PhasePoint
 )
-    return AdvancedHMC.phasepoint(h, z.θ, rand(rng, h.metric))
+    # TODO(tor): We're not passing `rng` here. We should find a better way.
+    return AdvancedHMC.phasepoint(h, z.θ, rand(h.metric, h.kinetic))
 end
 
 function AdvancedHMC.refresh(
     rng::Union{AbstractRNG, AbstractVector{<:AbstractRNG}},
     ::ContractiveRefreshment,
-    h::Hamiltonian,
+    h::AdvancedHMC.Hamiltonian,
     z::AdvancedHMC.PhasePoint
 )
     κ = 1.0
     x, y = z.θ[:,1], z.θ[:,2]
     Δ = x - y
     normΔ = norm(Δ)
-    rx = rand(rng, h.metric)[:,1]
+    # TODO(tor): We're not passing `rng` here. We should find a better way.
+    rx = rand(h.metric, h.kinetic)
     if iszero(normΔ)
         ry = rx
     else

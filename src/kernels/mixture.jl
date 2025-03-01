@@ -8,11 +8,11 @@ end
 
 function AdvancedHMC.transition(
     rng::AbstractRNG,
-    h::Hamiltonian,
+    h::AdvancedHMC.Hamiltonian,
     mix::MixtureKernel,
     z::AdvancedHMC.PhasePoint
 )
-    return if rand(rng) < mix.γ
+    return if rand() < mix.γ
         AdvancedHMC.transition(rng, h, mix.τ1, z)
     else
         AdvancedHMC.transition(rng, h, mix.τ2, z)
@@ -21,7 +21,7 @@ end
 
 function AdvancedHMC.transition(
     rng::AbstractVector{<:AbstractRNG},
-    h::Hamiltonian,
+    h::AdvancedHMC.Hamiltonian,
     mix::MixtureKernel,
     z::AdvancedHMC.PhasePoint
 )
@@ -30,10 +30,9 @@ function AdvancedHMC.transition(
     # use different components, BUT this will be faster and the resulting
     # chains should still be valid. Similar to:
     # https://github.com/TuringLang/AdvancedHMC.jl/pull/166#pullrequestreview-367216534
-    return if rand(rng) < mix.γ
+    return if rand() < mix.γ
         AdvancedHMC.transition(rng, h, mix.τ1, z)
     else
         AdvancedHMC.transition(rng, h, mix.τ2, z)
     end
 end
-

@@ -37,7 +37,7 @@ end
 
 # FIXME: Adaptation is not supported.
 function Base.iterate(iter::HMCIterator, state=AdvancedHMC.sample_init(iter.rng, iter.h, iter.θ0)[2])
-    state = transition(iter.rng, iter.h, iter.κ, state.z)
+    state = AdvancedHMC.transition(iter.rng, iter.h, iter.κ, state.z)
     return (state.z.θ, state)
 end
 
@@ -110,11 +110,11 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
         theta0 = alg.rinit(rng, VecTargets.dim(target))
     end
 
-    metric = UnitEuclideanMetric(VecTargets.dim(target))
+    metric = AdvancedHMC.UnitEuclideanMetric(VecTargets.dim(target))
     hamiltonian = begin
         logπ(θ) = VecTargets.logpdf(target, θ)
         gradlogπ(θ) = VecTargets.logpdf_grad(target, θ)
-        Hamiltonian(metric, logπ, gradlogπ)
+        AdvancedHMC.Hamiltonian(metric, logπ, gradlogπ)
     end
 
     momentum_refreshment = if (alg.momentum_refreshment isa SharedRefreshment) || (alg.momentum_refresment isa ContractiveRefreshment)
@@ -124,25 +124,28 @@ function get_ahmc_primitives(target, alg::HMCSampler, theta0)
     end
 
     if ismissing(alg.ϵ) && ismissing(alg.L)
-        integrator = Leapfrog(find_good_stepsize(rng, hamiltonian, theta0))
-        @assert alg.TS <: MultinomialTS
-        trajectory = Trajectory{MultinomialTS}(integrator, GeneralisedNoUTurn())
-        adaptor = StanHMCAdaptor(MassMatrixAdaptor(metric), StepSizeAdaptor(0.8, integrator))
-        kernel = HMCKernel(momentum_refreshment, trajectory)
+        integrator = AdvancedHMC.Leapfrog(find_good_stepsize(rng, hamiltonian, theta0))
+        @assert alg.TS <: AdvancedHMC.MultinomialTS
+        trajectory = AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS}(integrator, AdvancedHMC.GeneralisedNoUTurn())
+        adaptor = AdvancedHMC.StanHMCAdaptor(
+            AdvancedHMC.MassMatrixAdaptor(metric),
+            AdvancedHMC.StepSizeAdaptor(0.8, integrator)
+        )
+        kernel = AdvancedHMC.HMCKernel(momentum_refreshment, trajectory)
         return rng, hamiltonian, kernel, adaptor, theta0
     else
-        integrator = Leapfrog(alg.ϵ)
+        integrator = AdvancedHMC.Leapfrog(alg.ϵ)
         # Get the corresponding marginal trajectory sampler
         # TODO(tor): Improve this.
-        TS = if alg.TS <: EndPointTS
-            EndPointTS
-        elseif alg.TS <: CoupledMultinomialTS || alg.TS <: MultinomialTS
-            MultinomialTS
+        TS = if alg.TS <: AdvancedHMC.EndPointTS
+            AdvancedHMC.EndPointTS
+        elseif alg.TS <: CoupledMultinomialTS || alg.TS <: AdvancedHMC.MultinomialTS
+            AdvancedHMC.MultinomialTS
         else
             error("Marginal sampler for `$(alg.TS)` is not defined.")
         end
-        trajectory = Trajectory{TS}(integrator, FixedNSteps(alg.L))
-        kernel = HMCKernel(momentum_refreshment, trajectory)
+        trajectory = AdvancedHMC.Trajectory{TS}(integrator, AdvancedHMC.FixedNSteps(alg.L))
+        kernel = AdvancedHMC.HMCKernel(momentum_refreshment, trajectory)
 
         return rng, hamiltonian, kernel, theta0
     end
@@ -167,7 +170,7 @@ function get_ahmc_primitives(target, alg::CoupledHMCSampler, theta0)
     hamiltonian = begin
         logπ(θ) = VecTargets.logpdf(target, θ)
         gradlogπ(θ) = VecTargets.logpdf_grad(target, θ)
-        Hamiltonian(metric, logπ, gradlogπ)
+        AdvancedHMC.Hamiltonian(metric, logπ, gradlogπ)
     end
 
     integrator = Leapfrog(fill(alg.ϵ, 2))
